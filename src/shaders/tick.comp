@@ -1,0 +1,68 @@
+/* tick.comp */
+#version 460 core
+
+
+layout(local_size_x=32, local_size_y=1, local_size_z=1) in;
+layout(rgba32ui, binding=0) uniform uimage2D logiMap;
+
+
+#include <gateTypes> //For the gate functions.
+
+
+void unpackGateValues(
+	in uvec4 packedData, out uint gateType,
+	out uint internalState, out uint externalState,
+	out ivec2 inputs[3]
+) {
+	//Unpack gate metadata.
+	externalState = packedData.x & 0x1u; //Bit 0 is the state of the gate, the output.
+	internalState = (packedData.x >> 1u) & 0x1u; //Bit 1 is the internal state, used for flipflops etc.
+	gateType = (packedData.x >> 2u) & 0xFFu; //up to 256 gate types.
+	//Bits 
+
+	//Unpack inputs
+	for (uint i=0u; i<3u; i++) {
+		uint packedInput = packedData[i+1]; //Indices 1-3 inclusive (YZW)
+		inputs[i] = ivec2(
+			packedInput & 0xFFFFFFFFu, 	//Index inside layer. (Former 16b)
+			packedInput >> 16u 			//Layer index. (Latter 16b)
+		);
+	}
+}
+
+
+void repackGateValues(
+	inout uvec4 packedData, 
+	out uint internalState, out uint externalState
+) {
+	//Only adds the internal/external state, as the rest of the values are constant.
+	packedData.x &= 0xFFFFFFFCu; //All except the last 2 bits.
+	packedData.x |= (internalState << 1u) | externalState; //Last 2 bits are internal|external.
+}
+
+
+uint getInput(in ivec2 index) {
+	uint inputData = imageLoad(logiMap, index).x;
+	return inputData & 0x1u; //First bit is external state/gate output.
+}
+
+
+void main(void) {
+
+	ivec2 gateIndex = ivec2(gl_GlobalInvocationID.xy);
+	uvec4 gateData = imageLoad(logiMap, gateIndex).xyzw;
+
+	uint gateType;
+	uint internalState, externalState;
+	ivec2 inputIndices[3]; //Indices of inputs A/B/C (like gateIndex.)
+	unpackGateValues(gateData, gateType, internalState, externalState, inputIndices);
+
+	uint inputs[3]; //Actual input states
+	for (uint i=0u; i<3u; i++) {inputs[i] = getInput(inputIndices[i]);}
+
+	processGate(gateType, inputs, internalState, externalState);
+
+
+	repackGateValues(gateData, internalState, externalState);
+	imageStore(logiMap, gateIndex, gateData);
+}

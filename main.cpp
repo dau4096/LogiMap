@@ -43,6 +43,8 @@ int main() {
 
 
 	//Initialise.
+	maxGatesInLayer = 64u;
+	numberOfLayers = 32u;
 	graphics::prepareOpenGL();
 
 

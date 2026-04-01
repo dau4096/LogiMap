@@ -331,6 +331,15 @@ GLuint createGLImage2D(size_t width, size_t height, GLint internalFormat=GL_RGBA
 
 void prepareOpenGL() {
 	//OpenGL setup;
+	GLIndex::logiMap = createGLImage2D(
+		maxGatesInLayer,     //Highest number of gates in any layer.
+		numberOfLayers,     //Number of layers total.
+		GL_RGBA32UI,       //uint32_t types.
+		GL_NEAREST,       //No interp.
+		GL_CLAMP_TO_EDGE //Edges repeat.
+	);
+
+	GLIndex::tickShader = createComputeShader("tick.comp");
 
 
 	//Debug settings
@@ -350,6 +359,16 @@ void prepareOpenGL() {
 namespace tick {
 
 void run() {
+
+	glUseProgram(GLIndex::tickShader);
+	glBindImageTexture(0, GLIndex::logiMap, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32UI);
+	glDispatchCompute(
+		(maxGatesInLayer + 31u) / 32u, //Local size is (32,1,1)
+		numberOfLayers,
+		1u
+	);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+	glUseProgram(0);
 
 }
 
