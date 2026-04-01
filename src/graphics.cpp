@@ -1,0 +1,356 @@
+/* graphics.cpp */
+
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image.h>
+#include <stb_image_write.h>
+
+#include "includes.h"
+#include "global.h"
+#include "utils.h"
+
+
+void APIENTRY openGLErrorCallback(
+		GLenum source,
+		GLenum type, GLuint id,
+		GLenum severity,
+		GLsizei length, const GLchar* message,
+		const void* userParam
+	) {
+	/*
+	Nicely formatted callback from;
+	[https://learnopengl.com/In-Practice/Debugging]
+	*/
+	if ((id == 131169u) || (id == 131185u) || (id == 131218u) || (id == 131204u)) {return; /* Ignored warning IDs that are not errors */}
+
+	std::cout << "---------------" << std::endl << "Debug message (" << id << ") | " << message << std::endl;
+
+	switch (source)
+	{
+		case GL_DEBUG_SOURCE_API:             {std::cout << "Source: API"; break;}
+		case GL_DEBUG_SOURCE_WINDOW_SYSTEM:   {std::cout << "Source: Window System"; break;}
+		case GL_DEBUG_SOURCE_SHADER_COMPILER: {std::cout << "Source: Shader Compiler"; break;}
+		case GL_DEBUG_SOURCE_THIRD_PARTY:     {std::cout << "Source: Third Party"; break;}
+		case GL_DEBUG_SOURCE_APPLICATION:     {std::cout << "Source: Application"; break;}
+		case GL_DEBUG_SOURCE_OTHER:           {std::cout << "Source: Other"; break;}
+	} std::cout << std::endl;
+
+	switch (type)
+	{
+		case GL_DEBUG_TYPE_ERROR:               {std::cout << "Type: Error"; break;}
+		case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: {std::cout << "Type: Deprecated Behaviour"; break;}
+		case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:  {std::cout << "Type: Undefined Behaviour"; break;} 
+		case GL_DEBUG_TYPE_PORTABILITY:         {std::cout << "Type: Portability"; break;}
+		case GL_DEBUG_TYPE_PERFORMANCE:         {std::cout << "Type: Performance"; break;}
+		case GL_DEBUG_TYPE_MARKER:              {std::cout << "Type: Marker"; break;}
+		case GL_DEBUG_TYPE_PUSH_GROUP:          {std::cout << "Type: Push Group"; break;}
+		case GL_DEBUG_TYPE_POP_GROUP:           {std::cout << "Type: Pop Group"; break;}
+		case GL_DEBUG_TYPE_OTHER:               {std::cout << "Type: Other"; break;}
+	} std::cout << std::endl;
+	
+	switch (severity)
+	{
+		case GL_DEBUG_SEVERITY_HIGH:         {std::cout << "Severity: high"; break;}
+		case GL_DEBUG_SEVERITY_MEDIUM:       {std::cout << "Severity: medium"; break;}
+		case GL_DEBUG_SEVERITY_LOW:          {std::cout << "Severity: low"; break;}
+		case GL_DEBUG_SEVERITY_NOTIFICATION: {std::cout << "Severity: notification"; break;}
+	} std::cout << std::endl << std::endl;
+
+#ifdef PAUSE_ON_OPENGL_ERROR
+		utils::pause();
+#endif
+}
+
+
+
+
+
+static unsigned int lineNumberAt(const std::string& s, size_t pos) {
+	//Find [#line] number from position
+    return std::count(s.begin(), s.begin() + pos, '\n');
+}
+
+std::string preprocessIncludes(const std::string& source, const std::string& currentFile) {
+    std::regex includeRegex(R"(^\s*#include\s*<([^>]+)>)", std::regex_constants::multiline);
+
+    std::string result;
+    std::sregex_iterator it(source.begin(), source.end(), includeRegex);
+    std::sregex_iterator end;
+
+    size_t lastPos = 0;
+    for (; it!=end; it++) {
+        const std::smatch& match = *it;
+
+        //Copy text before include
+        result.append(source.substr(lastPos, match.position() - lastPos));
+
+        std::string includeFile = match[1].str();
+        std::string includePath = "src/shaders/" + includeFile + ".glsl";
+
+        std::string includedSource = utils::readFile(includePath);
+
+        unsigned int includeLine = lineNumberAt(source, match.position());
+
+	#ifdef LINE_DIRECTIVE_STRING
+		//Can be format `#line [lnNum] [srcFile]`
+		result += "#line 1 \"src/shaders/"+includeFile+".glsl\"\n"+includedSource+"\n"+"#line "+std::to_string(includeLine+1u)+" \""+currentFile+"\"\n";
+	#else
+		//Must be of format `#line [lnNum]`
+		result += "#line 1 \n"+includedSource+"\n"+"#line "+std::to_string(includeLine+1u)+" \n";
+	#endif
+		
+        lastPos = match.position() + match.length();
+    }
+
+    // Append remaining source
+    result.append(source.substr(lastPos));
+
+    return result;
+}
+
+
+
+GLuint compileShader(GLenum shaderType, string filePath) {
+	std::string source = utils::readFile(filePath);
+	source = preprocessIncludes(source, filePath);
+	const char* src = source.c_str();
+
+	//Create a shader id
+	GLuint shader = glCreateShader(shaderType);
+	if (shader == 0) {
+		utils::raise("Error: Failed to create shader.");
+		return 0;
+	}
+
+	//Attach the shader src
+	glShaderSource(shader, 1, &src, nullptr);
+	glCompileShader(shader);
+	
+
+	//Errorcheck
+	GLint success;
+	glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+	if (!success) {
+		if (!utils::isConsoleVisible()) {
+			utils::showConsole();
+		}
+		char infolog[512];
+		glGetShaderInfoLog(shader, 512, nullptr, infolog);
+		utils::raise("Error: Shader compilation failed;\n" + string(infolog));
+	}
+
+	return shader;
+}
+
+
+
+
+namespace uniforms {
+
+//Uniforms; [Many overloads]
+static inline void bindUniformValue(GLuint shaderProgram, const GLchar* uniformName, bool value) {
+	GLuint location = glGetUniformLocation(shaderProgram, uniformName);
+	if (location >= 0) {
+		glUniform1i(location, value);
+	}
+}
+static inline void bindUniformValue(GLuint shaderProgram, const GLchar* uniformName, size_t value) {
+	GLuint location = glGetUniformLocation(shaderProgram, uniformName);
+	if (location >= 0) {
+		glUniform1ui(location, value);
+	}
+}
+static inline void bindUniformValue(GLuint shaderProgram, const GLchar* uniformName, int value) {
+	GLuint location = glGetUniformLocation(shaderProgram, uniformName);
+	if (location >= 0) {
+		glUniform1i(location, value);
+	}
+}
+static inline void bindUniformValue(GLuint shaderProgram, const GLchar* uniformName, float value) {
+	GLuint location = glGetUniformLocation(shaderProgram, uniformName);
+	if (location >= 0) {
+		glUniform1f(location, value);
+	}
+}
+static inline void bindUniformValue(GLuint shaderProgram, const GLchar* uniformName, glm::ivec2 value) {
+	GLuint location = glGetUniformLocation(shaderProgram, uniformName);
+	if (location >= 0) {
+		glUniform2i(location, value.x, value.y);
+	}
+}
+static inline void bindUniformValue(GLuint shaderProgram, const GLchar* uniformName, glm::vec2 value) {
+	GLuint location = glGetUniformLocation(shaderProgram, uniformName);
+	if (location >= 0) {
+		glUniform2f(location, value.x, value.y);
+	}
+}
+static inline void bindUniformValue(GLuint shaderProgram, const GLchar* uniformName, glm::ivec3 value) {
+	GLuint location = glGetUniformLocation(shaderProgram, uniformName);
+	if (location >= 0) {
+		glUniform3i(location, value.x, value.y, value.z);
+	}
+}
+static inline void bindUniformValue(GLuint shaderProgram, const GLchar* uniformName, glm::vec3 value) {
+	GLuint location = glGetUniformLocation(shaderProgram, uniformName);
+	if (location >= 0) {
+		glUniform3f(location, value.x, value.y, value.z);
+	}
+}
+static inline void bindUniformValue(GLuint shaderProgram, const GLchar* uniformName, glm::ivec4 value) {
+	GLuint location = glGetUniformLocation(shaderProgram, uniformName);
+	if (location >= 0) {
+		glUniform4i(location, value.x, value.y, value.z, value.w);
+	}
+}
+static inline void bindUniformValue(GLuint shaderProgram, const GLchar* uniformName, glm::vec4 value) {
+	GLuint location = glGetUniformLocation(shaderProgram, uniformName);
+	if (location >= 0) {
+		glUniform4f(location, value.x, value.y, value.z, value.w);
+	}
+}
+
+}
+
+
+
+
+
+namespace graphics {
+
+GLFWwindow* initialiseWindow(glm::ivec2 resolution, const char* title) {
+	if (!glfwInit()) {
+		utils::raise("Failed to initialize GLFW");
+		return nullptr;
+	}
+
+
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, display::OPENGL_VERSION_MAJOR);  //OpenGL major ver (4)
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, display::OPENGL_VERSION_MINOR);  //OpenGL minor ver (6)
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  //Use Core (not ES)
+
+
+	GLFWwindow* Window = glfwCreateWindow(resolution.x, resolution.y, title, NULL, NULL);
+	if (!Window) {
+		glfwTerminate();
+		utils::raise("Failed to create GLFW window");
+		return nullptr;
+	}
+	glfwMakeContextCurrent(Window);
+
+	glewExperimental = GL_TRUE;
+	if (glewInit() != GLEW_OK) {
+		utils::raise("Failed to initialize GLEW.");
+	}
+
+	glfwSetInputMode(Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	return Window;
+}
+
+
+
+
+GLuint createComputeShader(std::string compShaderName) {
+	GLuint computeShader = compileShader(GL_COMPUTE_SHADER, "src/shaders/" + compShaderName);
+
+	GLuint shaderProgram = glCreateProgram();
+	glAttachShader(shaderProgram, computeShader);
+	glLinkProgram(shaderProgram);
+
+	GLint success;
+	glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+	if (!success) {
+		if (!utils::isConsoleVisible()) {
+			utils::showConsole();
+		}
+		char infolog[512];
+		glGetProgramInfoLog(shaderProgram, 512, nullptr, infolog);
+		utils::raise("Error: Compute shader program linking failed:\n" + std::string(infolog));
+	}
+
+	glDeleteShader(computeShader);
+
+	return shaderProgram;
+}
+
+
+
+
+
+
+//// TEXTURES ////
+void saveImage(GLuint textureID, glm::ivec2 resolution, bool silent=false) {
+    std::vector<unsigned char> pixels(resolution.x * resolution.y * 3u);
+
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+	stbi_flip_vertically_on_write(true);
+
+	std::filesystem::path dirName = std::filesystem::path("saved.images");
+	std::filesystem::create_directories(dirName);
+
+	std::string timeStr = utils::getTimestamp();
+	std::filesystem::path imagePath = dirName / (timeStr + ".png");
+
+	stbi_write_png(
+		imagePath.string().c_str(),
+		resolution.x, resolution.y,
+		3u, pixels.data(), resolution.x*3u
+	);
+
+	if (!silent) {std::cout << "Successfully saved image as : [" << imagePath << "]" << std::endl;}
+}
+
+
+
+GLuint createGLImage2D(size_t width, size_t height, GLint internalFormat=GL_RGBA32F, GLint samplingType=GL_NEAREST, GLint edgeSampling=GL_REPEAT) {
+	GLuint textureID;
+	glGenTextures(1, &textureID);
+	glBindTexture(GL_TEXTURE_2D, textureID);
+
+	glTexStorage2D(GL_TEXTURE_2D, 1, internalFormat, width, height);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, samplingType);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, samplingType);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	return textureID;
+}
+
+//// TEXTURES ////
+
+
+
+
+
+
+
+void prepareOpenGL() {
+	//OpenGL setup;
+
+
+	//Debug settings
+	glEnable(GL_DEBUG_OUTPUT);
+	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+	glDebugMessageCallback(openGLErrorCallback, nullptr);
+	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
+
+	utils::GLErrorcheck("Initialisation", true); //Old basic debugging
+}
+
+}
+
+
+
+
+namespace tick {
+
+void run() {
+
+}
+
+}
