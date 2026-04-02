@@ -27,10 +27,3 @@ inline GLuint logiMap;
 inline GLuint tickShader;
 
 }
-
-
-namespace structs {
-
-//Structs and other typedefs.
-
-}

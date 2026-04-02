@@ -6,6 +6,7 @@
 #include <stb_image_write.h>
 
 #include "includes.h"
+#include "types.h"
 #include "global.h"
 #include "utils.h"
 
@@ -304,7 +305,15 @@ void saveImage(GLuint textureID, glm::ivec2 resolution, bool silent=false) {
 
 
 
-GLuint createGLImage2D(size_t width, size_t height, GLint internalFormat=GL_RGBA32F, GLint samplingType=GL_NEAREST, GLint edgeSampling=GL_REPEAT) {
+GLuint createGLImage2D(
+	unsigned int width, unsigned int height,
+	GLint internalFormat=GL_RGBA32F,
+	GLint samplingType=GL_NEAREST,
+	GLint edgeSampling=GL_REPEAT
+) {
+	
+	if ((width < 1u) || (height < 1u)) {return -1; /* Invalid size */}
+
 	GLuint textureID;
 	glGenTextures(1, &textureID);
 	glBindTexture(GL_TEXTURE_2D, textureID);
@@ -326,11 +335,42 @@ GLuint createGLImage2D(size_t width, size_t height, GLint internalFormat=GL_RGBA
 
 
 
+void writeGatesToMap() {
+	unsigned int layerIndex = 0u;
+	unsigned int gateIndex;
+	std::vector<glm::uvec4> mapData(maxGatesInLayer * numberOfLayers); //Reserve space. Intentionally, uvec4(0,0,0,0) is valid as a "blank space" gate.
 
+	for (const std::vector<types::Gate>& layer : gateLayers) {
+		gateIndex = 0u;
+		for (const types::Gate& gate : layer) {
+			mapData[(layerIndex * maxGatesInLayer) + gateIndex] = gate.pack();
+			gateIndex++;
+		}
+		layerIndex++;
+	}
+
+	glBindTexture(GL_TEXTURE_2D, GLIndex::logiMap);
+	glTexSubImage2D(
+		GL_TEXTURE_2D, 0, 0, 0,
+		maxGatesInLayer, numberOfLayers, //W, H
+		GL_RGBA_INTEGER, GL_UNSIGNED_INT, //Format, Type (GL_RGBA32UI)
+		mapData.data()
+	);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	utils::GLErrorcheck("LogiMap data assignment", true); //Old basic debugging
+}
 
 
 void prepareOpenGL() {
 	//OpenGL setup;
+
+	maxGatesInLayer = 0u;
+	for (const std::vector<types::Gate>& layer : gateLayers) {maxGatesInLayer = glm::max(maxGatesInLayer, (unsigned int)(layer.size()));}
+	numberOfLayers = gateLayers.size();
+
+	std::cout << maxGatesInLayer << " " << numberOfLayers << std::endl;
+	if ((maxGatesInLayer == 0u) || (numberOfLayers == 0u)) {return; /* Nothing more to be done. */}
+
 	GLIndex::logiMap = createGLImage2D(
 		maxGatesInLayer,     //Highest number of gates in any layer.
 		numberOfLayers,     //Number of layers total.
@@ -338,6 +378,10 @@ void prepareOpenGL() {
 		GL_NEAREST,       //No interp.
 		GL_CLAMP_TO_EDGE //Edges repeat.
 	);
+	utils::GLErrorcheck("LogiMap allocation", true); //Old basic debugging
+
+	writeGatesToMap();
+
 
 	GLIndex::tickShader = createComputeShader("tick.comp");
 

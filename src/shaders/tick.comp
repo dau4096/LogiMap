@@ -24,8 +24,8 @@ void unpackGateValues(
 	for (uint i=0u; i<3u; i++) {
 		uint packedInput = packedData[i+1]; //Indices 1-3 inclusive (YZW)
 		inputs[i] = ivec2(
-			packedInput & 0xFFFFFFFFu, 	//Index inside layer. (Former 16b)
-			packedInput >> 16u 			//Layer index. (Latter 16b)
+			packedInput & 0xFFFFu, 	//Index inside layer. (Former 16b)
+			packedInput >> 16u 		//Layer index. (Latter 16b)
 		);
 	}
 }
