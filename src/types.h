@@ -7,10 +7,28 @@
 
 //Mirrors the #define version found in the gateTypes.glsl shader helper file.
 enum GateType {
+	//Meta gate types
 	G_BLANK = 0x0u,
-	G_TRUE = 0x1u, G_FALSE = 0x2u,
-	G_PASSTHROUGH = 0x3u,
-	G_NOT = 0x4u
+	G_TRUE = 0x1u,
+	G_FALSE = 0x2u,
+
+	//Basic gate types
+	G_PASSTHROUGH = 0x10u,
+	G_NOT = 0x11u,
+	G_AND = 0x12u,
+	G_OR = 0x13u,
+	G_XOR = 0x14u,
+	G_NAND = 0x15u,
+	G_NOR = 0x16u,
+	G_XNOR = 0x17u,
+	G_MUX = 0x18u,
+	G_DMUX = 0x19u,
+
+	//More complex logic components
+	G_DFF = 0x20u,
+	G_JK = 0x21u,
+	G_PULSE = 0x22u,
+	G_DELAY = 0x23u
 };
 
 

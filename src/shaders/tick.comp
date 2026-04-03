@@ -41,7 +41,7 @@ void repackGateValues(
 ) {
 	//Only adds the internal/external state, as the rest of the values are constant.
 	packedData.x &= 0xFFFFFFFCu; //All except the last 2 bits.
-	packedData.x |= (internalState << 1u) | externalState; //Last 2 bits are internal|external.
+	packedData.x |= ((internalState&0x1u) << 1u) | (externalState&0x1u); //Last 2 bits are internal|external.
 }
 
 
