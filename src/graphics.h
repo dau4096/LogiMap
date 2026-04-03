@@ -15,7 +15,7 @@ namespace uniforms {
 
 //Uniforms; [Many overloads]
 static inline void bindUniformValue(GLuint shaderProgram, const GLchar* uniformName, bool value);
-static inline void bindUniformValue(GLuint shaderProgram, const GLchar* uniformName, size_t value);
+static inline void bindUniformValue(GLuint shaderProgram, const GLchar* uniformName, GLuint value);
 static inline void bindUniformValue(GLuint shaderProgram, const GLchar* uniformName, int value);
 static inline void bindUniformValue(GLuint shaderProgram, const GLchar* uniformName, float value);
 static inline void bindUniformValue(GLuint shaderProgram, const GLchar* uniformName, glm::ivec2 value);
@@ -41,13 +41,13 @@ namespace graphics {
 	//// TEXTURES ////
 
 
-	void prepareOpenGL();
+	void prepareOpenGL(void);
 }
 
 
 namespace tick {
 
-	void run();
+	void run(void);
 
 }
 

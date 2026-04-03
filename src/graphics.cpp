@@ -68,29 +68,29 @@ void APIENTRY openGLErrorCallback(
 
 static unsigned int lineNumberAt(const std::string& s, size_t pos) {
 	//Find [#line] number from position
-    return std::count(s.begin(), s.begin() + pos, '\n');
+	return std::count(s.begin(), s.begin() + pos, '\n');
 }
 
 std::string preprocessIncludes(const std::string& source, const std::string& currentFile) {
-    std::regex includeRegex(R"(^\s*#include\s*<([^>]+)>)", std::regex_constants::multiline);
+	std::regex includeRegex(R"(^\s*#include\s*<([^>]+)>)", std::regex_constants::multiline);
 
-    std::string result;
-    std::sregex_iterator it(source.begin(), source.end(), includeRegex);
-    std::sregex_iterator end;
+	std::string result;
+	std::sregex_iterator it(source.begin(), source.end(), includeRegex);
+	std::sregex_iterator end;
 
-    size_t lastPos = 0;
-    for (; it!=end; it++) {
-        const std::smatch& match = *it;
+	size_t lastPos = 0;
+	for (; it!=end; it++) {
+		const std::smatch& match = *it;
 
-        //Copy text before include
-        result.append(source.substr(lastPos, match.position() - lastPos));
+		//Copy text before include
+		result.append(source.substr(lastPos, match.position() - lastPos));
 
-        std::string includeFile = match[1].str();
-        std::string includePath = "src/shaders/" + includeFile + ".glsl";
+		std::string includeFile = match[1].str();
+		std::string includePath = "src/shaders/" + includeFile + ".glsl";
 
-        std::string includedSource = utils::readFile(includePath);
+		std::string includedSource = utils::readFile(includePath);
 
-        unsigned int includeLine = lineNumberAt(source, match.position());
+		unsigned int includeLine = lineNumberAt(source, match.position());
 
 	#ifdef LINE_DIRECTIVE_STRING
 		//Can be format `#line [lnNum] [srcFile]`
@@ -100,13 +100,13 @@ std::string preprocessIncludes(const std::string& source, const std::string& cur
 		result += "#line 1 \n"+includedSource+"\n"+"#line "+std::to_string(includeLine+1u)+" \n";
 	#endif
 		
-        lastPos = match.position() + match.length();
-    }
+		lastPos = match.position() + match.length();
+	}
 
-    // Append remaining source
-    result.append(source.substr(lastPos));
+	// Append remaining source
+	result.append(source.substr(lastPos));
 
-    return result;
+	return result;
 }
 
 
@@ -155,7 +155,7 @@ static inline void bindUniformValue(GLuint shaderProgram, const GLchar* uniformN
 		glUniform1i(location, value);
 	}
 }
-static inline void bindUniformValue(GLuint shaderProgram, const GLchar* uniformName, size_t value) {
+static inline void bindUniformValue(GLuint shaderProgram, const GLchar* uniformName, GLuint value) {
 	GLuint location = glGetUniformLocation(shaderProgram, uniformName);
 	if (location >= 0) {
 		glUniform1ui(location, value);
@@ -243,7 +243,6 @@ GLFWwindow* initialiseWindow(glm::ivec2 resolution, const char* title) {
 		utils::raise("Failed to initialize GLEW.");
 	}
 
-	glfwSetInputMode(Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	return Window;
 }
 
@@ -280,11 +279,11 @@ GLuint createComputeShader(std::string compShaderName) {
 
 //// TEXTURES ////
 void saveImage(GLuint textureID, glm::ivec2 resolution, bool silent=false) {
-    std::vector<unsigned char> pixels(resolution.x * resolution.y * 3u);
+	std::vector<unsigned char> pixels(resolution.x * resolution.y * 3u);
 
-    glBindTexture(GL_TEXTURE_2D, textureID);
-    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
-    glBindTexture(GL_TEXTURE_2D, 0);
+	glBindTexture(GL_TEXTURE_2D, textureID);
+	glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
+	glBindTexture(GL_TEXTURE_2D, 0);
 
 	stbi_flip_vertically_on_write(true);
 
@@ -357,11 +356,12 @@ void writeGatesToMap() {
 		mapData.data()
 	);
 	glBindTexture(GL_TEXTURE_2D, 0);
+
 	utils::GLErrorcheck("LogiMap data assignment", true); //Old basic debugging
 }
 
 
-void prepareOpenGL() {
+void prepareOpenGL(void) {
 	//OpenGL setup;
 
 	maxGatesInLayer = 0u;
@@ -402,16 +402,38 @@ void prepareOpenGL() {
 
 namespace tick {
 
-void run() {
+void run(void) {
 
 	glUseProgram(GLIndex::tickShader);
-	glBindImageTexture(0, GLIndex::logiMap, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32UI);
+	unsigned int Xdispatch = (maxGatesInLayer + 31u) / 32u; //Local size is (32,1,1)
+
+#ifdef CONCURRENT_LAYERS
+	
+	uniforms::bindUniformValue(GLIndex::tickShader, "baseLayerIndex", (GLuint)(0u));
+	uniforms::bindUniformValue(GLIndex::tickShader, "numGatesInLayer", (GLuint)(maxGatesInLayer));
+	glBindImageTexture(0, GLIndex::logiMap, 0, GL_FALSE, 0, GL_READ_WRITE,  GL_RGBA32UI);
 	glDispatchCompute(
-		(maxGatesInLayer + 31u) / 32u, //Local size is (32,1,1)
+		Xdispatch,
 		numberOfLayers,
 		1u
 	);
-	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_UPDATE_BARRIER_BIT);
+
+#else
+
+	for (GLuint i=0u; i<numberOfLayers; i++) {
+		uniforms::bindUniformValue(GLIndex::tickShader, "baseLayerIndex", i);
+		uniforms::bindUniformValue(GLIndex::tickShader, "numGatesInLayer", (GLuint)(gateLayers[i].size()));
+		glBindImageTexture(0, GLIndex::logiMap, 0, GL_FALSE, 0, GL_READ_WRITE,  GL_RGBA32UI);
+		glDispatchCompute(
+			Xdispatch,
+			1, 1
+		);
+		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_UPDATE_BARRIER_BIT);
+	}
+
+#endif
+
 	glUseProgram(0);
 
 }

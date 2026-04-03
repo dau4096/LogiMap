@@ -3,8 +3,11 @@
 
 //////// GATE TYPE DEFINITIONS ////////
 #define G_BLANK 0x0u
-#define G_PASSTHROUGH 0x1u
-#define G_NOT 0x2u
+#define G_TRUE 0x1u
+#define G_FALSE 0x2u
+
+#define G_PASSTHROUGH 0x3u
+#define G_NOT 0x4u
 //////// GATE TYPE DEFINITIONS ////////
 
 
@@ -18,6 +21,20 @@ void processGate(
 			break;
 		}
 
+		case G_TRUE: {
+			//Constant True
+			externalState = 1u;
+			break;
+		}
+		case G_FALSE: {
+			//Constant False
+			externalState = 0u;
+			break;
+		}
+
+
+
+		//Real gates.
 		case G_PASSTHROUGH: {
 			//Just pass through A. Acts as a Buffer gate.
 			externalState = inputs[0];

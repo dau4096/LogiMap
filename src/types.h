@@ -8,8 +8,9 @@
 //Mirrors the #define version found in the gateTypes.glsl shader helper file.
 enum GateType {
 	G_BLANK = 0x0u,
-	G_PASSTHROUGH = 0x1u,
-	G_NOT = 0x2u
+	G_TRUE = 0x1u, G_FALSE = 0x2u,
+	G_PASSTHROUGH = 0x3u,
+	G_NOT = 0x4u
 };
 
 
@@ -29,6 +30,8 @@ struct Gate {
 		: ID(id), type(gT) {
 			std::copy(i, i+3, inputs); //Copy values.
 		}
+	Gate(const unsigned int id, const GateType gT, unsigned int i0, unsigned int i1, unsigned int i2)
+		: ID(id), type(gT), inputs{i0, i1, i2} {}
 
 	glm::uvec4 pack() const {
 		//Pack metadata.
@@ -42,8 +45,8 @@ struct Gate {
 			//Indices 1-3 inclusive (YZW)
 			glm::uvec2 inputPosition = gatePositionMap[inputs[i]];
 			packedData[i+1] = (
-				(inputPosition.x & 0xFFFFu) | //Former 16b
-				((inputPosition.y & 0xFFFFu) << 16u) //Latter 16b
+				(inputPosition.x & 0xFFFFu) | //Former 16b is index in layer
+				((inputPosition.y & 0xFFFFu) << 16u) //Latter 16b is layer index
 			);
 		}
 
@@ -55,12 +58,13 @@ struct Gate {
 }
 
 
-inline std::vector<std::vector<types::Gate>> gateLayers = {}; //2D map of gate layers
+extern std::vector<std::vector<types::Gate>> gateLayers; //2D map of gate layers
 
-inline glm::uvec2 writeGateToLayer(unsigned int layer, unsigned int index, const types::Gate& gate) {
+inline glm::uvec2 writeGateToLayer(unsigned int layer, const types::Gate& gate) {
 	//Small helper function.
-	gateLayers[layer][index] = gate;
-	glm::uvec2 uv = glm::uvec2(layer, index);
+	if (gateLayers.size() <= layer) {gateLayers.resize(layer+1u); /* Add new empty vectors for this new layer. */}
+	gateLayers[layer].push_back(gate);
+	glm::uvec2 uv = glm::uvec2(gateLayers[layer].size()-1u, layer);
 	gatePositionMap[gate.ID] = uv;
 	return uv;
 }

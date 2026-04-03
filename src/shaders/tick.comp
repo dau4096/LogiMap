@@ -6,6 +6,10 @@ layout(local_size_x=32, local_size_y=1, local_size_z=1) in;
 layout(rgba32ui, binding=0) uniform uimage2D logiMap;
 
 
+uniform uint baseLayerIndex;
+uniform uint numGatesInLayer;
+
+
 #include <gateTypes> //For the gate functions.
 
 
@@ -33,7 +37,7 @@ void unpackGateValues(
 
 void repackGateValues(
 	inout uvec4 packedData, 
-	out uint internalState, out uint externalState
+	in uint internalState, in uint externalState
 ) {
 	//Only adds the internal/external state, as the rest of the values are constant.
 	packedData.x &= 0xFFFFFFFCu; //All except the last 2 bits.
@@ -49,7 +53,8 @@ uint getInput(in ivec2 index) {
 
 void main(void) {
 
-	ivec2 gateIndex = ivec2(gl_GlobalInvocationID.xy);
+	ivec2 gateIndex = ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y + baseLayerIndex);
+	if (gateIndex.x >= numGatesInLayer) {return;}
 	uvec4 gateData = imageLoad(logiMap, gateIndex).xyzw;
 
 	uint gateType;
@@ -62,7 +67,7 @@ void main(void) {
 
 	processGate(gateType, inputs, internalState, externalState);
 
-
+	
 	repackGateValues(gateData, internalState, externalState);
 	imageStore(logiMap, gateIndex, gateData);
 }

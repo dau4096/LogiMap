@@ -1,6 +1,7 @@
 /* main.cpp */
 
 #include "src/includes.h"
+#include "src/types.h"
 #include "src/global.h"
 #include "src/utils.h"
 #include "src/graphics.h"
@@ -18,6 +19,28 @@ void handleInputs() {
 		if (keyState == GLFW_PRESS) {keyMap[pair.first] = true;}
 		else if (keyState == GLFW_RELEASE) {keyMap[pair.first] = false;}
 	}
+
+}
+
+
+
+void testLogic() {
+
+#ifdef TEST_PASSTHROUGH
+	//Passes some value through multiple layers.
+	types::Gate gStart = types::Gate(
+		0u, G_TRUE, 0u, 0u, 0u //Index, Type, A, B, C
+	);
+	writeGateToLayer(0u, gStart); //Layer 0
+	
+	for (unsigned int i=1u; i<4u; i++) {
+		//3 extra passthroughs.
+		types::Gate gateI = types::Gate(
+			i, G_PASSTHROUGH, i-1u, 0u, 0u //Index, Type, A, B, C
+		);
+		writeGateToLayer(i, gateI); //Layer i
+	}
+#endif
 
 }
 
@@ -43,8 +66,7 @@ int main() {
 
 
 	//Initialise.
-	maxGatesInLayer = 64u;
-	numberOfLayers = 32u;
+	testLogic();
 	graphics::prepareOpenGL();
 
 
