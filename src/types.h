@@ -80,6 +80,14 @@ struct Gate {
 };
 
 
+
+struct GateTemplate {
+	std::string name;
+	GateType type;
+	std::string inputs[3];
+};
+
+
 }
 
 

@@ -5,6 +5,11 @@
 #include <stb_image.h>
 #include <stb_image_write.h>
 
+#include <iostream>
+#include <iomanip>
+#include <regex>
+#include <filesystem>
+
 #include "includes.h"
 #include "types.h"
 #include "global.h"

@@ -1,11 +1,14 @@
+/* utils.h */
 #ifndef UTILS_H
 #define UTILS_H
+
+#include <vector>
+#include <stdexcept>
+#include <iomanip>
 
 #include "includes.h"
 #include "global.h"
 #include "constants.h"
-#include <vector>
-#include <stdexcept>
 
 using namespace std;
 

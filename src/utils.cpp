@@ -1,3 +1,9 @@
+/* utils.cpp */
+#include <string>
+#include <fstream>
+#include <stdexcept>
+#include <sstream>
+
 #include "includes.h"
 #include "global.h"
 #include "constants.h"
