@@ -72,10 +72,10 @@ static unsigned int lineNumberAt(const std::string& s, size_t pos) {
 }
 
 std::string preprocessIncludes(const std::string& source, const std::string& currentFile) {
-	std::regex includeRegex(R"(^\s*#include\s*<([^>]+)>)", std::regex_constants::multiline);
+	std::regex includeRegex = std::regex(R"(^\s*#include\s*<([^>]+)>)", std::regex_constants::multiline);
 
 	std::string result;
-	std::sregex_iterator it(source.begin(), source.end(), includeRegex);
+	std::sregex_iterator it = std::sregex_iterator(source.begin(), source.end(), includeRegex);
 	std::sregex_iterator end;
 
 	size_t lastPos = 0;

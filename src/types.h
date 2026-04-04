@@ -30,6 +30,7 @@ enum GateType {
 	G_PULSE = 0x22u,
 	G_DELAY = 0x23u
 };
+#define INVALID_ID 0xFFFFFFFFu /* Very large ID. */
 
 
 
@@ -42,14 +43,20 @@ struct Gate {
 	unsigned int ID;
 	GateType type;
 	unsigned int inputs[3];
+	unsigned int numInputs;
 
 	Gate() : ID(0u), type(G_PASSTHROUGH), inputs{0u, 0u, 0u} {}
 	Gate(const unsigned int id, const GateType gT, unsigned int i[3])
 		: ID(id), type(gT) {
 			std::copy(i, i+3, inputs); //Copy values.
+			numInputs = 0u;
+			for (const unsigned int& i : inputs) {if (i != INVALID_ID) {numInputs++;}}
 		}
 	Gate(const unsigned int id, const GateType gT, unsigned int i0, unsigned int i1, unsigned int i2)
-		: ID(id), type(gT), inputs{i0, i1, i2} {}
+		: ID(id), type(gT), inputs{i0, i1, i2} {
+			numInputs = 0u;
+			for (const unsigned int& i : inputs) {if (i != INVALID_ID) {numInputs++;}}
+		}
 
 	glm::uvec4 pack() const {
 		//Pack metadata.
@@ -85,6 +92,12 @@ inline glm::uvec2 writeGateToLayer(unsigned int layer, const types::Gate& gate) 
 	glm::uvec2 uv = glm::uvec2(gateLayers[layer].size()-1u, layer);
 	gatePositionMap[gate.ID] = uv;
 	return uv;
+}
+
+inline bool isGateSatisfied(unsigned int thisLayer, unsigned int otherGateID) {
+	auto it = gatePositionMap.find(otherGateID);
+	if (it == gatePositionMap.end()) {return false;}
+	return (it->second.y < thisLayer); //Other gate's layer < this gate's layer.
 }
 
 
