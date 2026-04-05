@@ -1,0 +1,23 @@
+/* FullAdder.hdl */
+
+CHIP FullAdder {
+
+	IN A, B, CarryIn;
+	OUT Sum, CarryOut;
+
+	PARTS:
+	
+	//Half adder (A, B)
+	Xor(a=A, b=B, out=HA0xor);
+	And(a=A, b=B, out=HA0and);
+
+	//Half adder (Q, C)
+	Xor(a=HA0xor, b=CarryIn, out=HA1xor);
+	And(a=HA0xor, b=CarryIn, out=HA1and);
+
+	//Final OR
+	Or(a=HA0and, b=HA1and, out=CarryOut);
+	Passthrough(in=HA1xor, out=Sum);
+
+}
+

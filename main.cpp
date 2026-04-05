@@ -6,8 +6,8 @@
 #include "src/types.h"
 #include "src/global.h"
 #include "src/utils.h"
-#include "src/logic.h"
 #include "src/graphics.h"
+#include "src/hdl.h"
 
 
 
@@ -48,7 +48,7 @@ int main() {
 
 
 	//Initialise.
-	logic::testLogic();
+	HDL::parse("FullAdder.hdl");
 	graphics::prepareOpenGL();
 
 

@@ -81,6 +81,58 @@ bool addGate(const GateType type, const std::string name, const std::string in0=
 }
 
 
+
+bool addGateIO(
+	const GateType type, const std::unordered_map<std::string, std::string>& args
+) {
+	//Semi-Overload of addGate() that handles named inputs/outputs.
+	switch (type) {
+		case G_NOT: case G_PASSTHROUGH: case G_PULSE:
+		case G_DELAY: case G_DFF: {
+			//[Name](in=?, out=?);
+			return addGate(
+				type, args.at("out"), args.at("in"), "", ""
+			);
+			break;
+		}
+
+		case G_AND: case G_OR: case G_XOR:
+		case G_NAND: case G_NOR: case G_XNOR: {
+			//[Name](a=?, b=?, out=?);
+			return addGate(
+				type, args.at("out"), args.at("a"), args.at("b"), ""
+			);
+			break;
+		}
+
+		case G_MUX: {
+			//[Name](a=?, b=?, sel=?, out=?);
+			return addGate(
+				type, args.at("out"), args.at("a"), args.at("b"), args.at("sel")
+			);
+			break;
+		}
+
+		case G_JK: {
+			//[Name](set=?, reset=?, out=?);
+			return addGate(
+				type, args.at("out"), args.at("set"), args.at("reset"), ""
+			);
+			break;
+		}
+
+		default: {
+			//Unknown type.
+			std::cerr << "Unknown gate type: " << type << std::endl;
+			return false;
+			break;
+		}
+	}
+	return true;
+}
+
+
+
 bool createGates() {
 	//Uses map to convert named ids into actual values.
 	unsigned int gateIndex = 0u;
@@ -100,47 +152,6 @@ bool createGates() {
 	}
 
 	return true;
-}
-
-
-
-void testLogic() {
-
-#ifdef TEST_PASSTHROUGH
-	//Passes some value through multiple layers.
-	addGate(G_TRUE, "constant true");
-	addGate(G_PASSTHROUGH, "passthrough 0", "constant true");
-	addGate(G_PASSTHROUGH, "passthrough 1", "passthrough 0");
-	addGate(G_PASSTHROUGH, "passthrough 2", "passthrough 1");
-	createGates();
-	structureLogic();
-#endif
-
-
-#ifdef TEST_ADDER
-	//A simple 1 bit full adder circuit.
-	//Inputs
-	addGate(G_TRUE, "A");
-	addGate(G_TRUE, "B");
-	addGate(G_TRUE, "Carry In");
-
-	//Half adder (A, B)
-	addGate(G_XOR, "HA0xor", "A", "B");
-	addGate(G_AND, "HA0and", "A", "B");
-
-	//Half adder (Q, C)
-	addGate(G_XOR, "HA1xor", "HA0xor", "Carry In");
-	addGate(G_AND, "HA1and", "HA0xor", "Carry In");
-
-	//Final OR
-	addGate(G_OR, "Carry Out", "HA0and", "HA1and");
-	addGate(G_PASSTHROUGH, "Sum", "HA1xor");
-
-	//Structure gates properly.
-	createGates();
-	structureLogic();
-#endif
-
 }
 
 

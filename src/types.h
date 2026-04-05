@@ -81,6 +81,7 @@ struct Gate {
 
 
 
+
 struct GateTemplate {
 	std::string name;
 	GateType type;

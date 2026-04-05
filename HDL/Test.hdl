@@ -1,0 +1,11 @@
+/* Test.hdl */
+
+CHIP Test {
+	//No inputs/outputs
+
+	PARTS:
+
+	Test2(a=0, b=1);
+	And(a=0, b=1);
+
+}

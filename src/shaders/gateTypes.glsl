@@ -4,9 +4,13 @@
 //Leaves some gap for future gate types to be added between.
 //////// GATE TYPE DEFINITIONS ////////
 //Meta gate types
-#define G_BLANK 0x0u
-#define G_TRUE 0x1u
-#define G_FALSE 0x2u
+#define G_BLANK 0x00u
+#define G_TRUE 0x01u
+#define G_FALSE 0x02u
+//Maybe?
+//Could INPUT via uniforms (?) and output via CPU-side data reading? Unsure. Consider further.
+#define G_INPUT 0x03u
+#define G_OUTPUT 0x04u
 
 //Basic gate types
 #define G_PASSTHROUGH 0x10u

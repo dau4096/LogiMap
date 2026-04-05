@@ -6,7 +6,7 @@ INCLUDE = -I/usr/include -I/usr/include/GL -I/usr/include/glm -I/usr/local/inclu
 
 LIBS = -lglfw -lGLEW -lGL -lm -ldl -pthread
 
-SOURCES = main.cpp src/graphics.cpp src/utils.cpp src/types.cpp src/logic.cpp
+SOURCES = main.cpp src/graphics.cpp src/utils.cpp src/types.cpp src/logic.cpp src/hdl.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 BINFILE = prgm.x86_64
 
