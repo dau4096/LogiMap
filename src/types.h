@@ -89,6 +89,18 @@ struct GateTemplate {
 };
 
 
+
+struct Chip {
+	std::string path;
+	std::unordered_map<std::string, std::string> args;
+	std::string prefix;
+
+	Chip() : path(""), args(), prefix("") {}
+	Chip(const std::string& pa, const std::unordered_map<std::string, std::string>& a, const std::string& pr)
+		: path(pa), args(a), prefix(pr) {}
+};
+
+
 }
 
 

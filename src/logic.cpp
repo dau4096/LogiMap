@@ -18,6 +18,8 @@ std::vector<types::Gate> gates = {};
 
 namespace logic {
 
+
+
 void structureLogic() { //Make a copy, as values [will] be removed from it in processing.
 	//Loop through all of the gates, find those with "No dependencies" (Such as G_TRUE/G_FALSE etc.)
 	for (unsigned int gateIndex=0u; gateIndex<gates.size();) {
@@ -77,6 +79,11 @@ bool addGate(const GateType type, const std::string name, const std::string in0=
 	templ.inputs[2] = in2;
 	templates.push_back(templ);
 
+	std::cout << std::format(
+		"IN: \"{}\" \"{}\" \"{}\"    OUT: \"{}\"    TYPE: {}",
+		in0, in1, in2, name, std::to_string(type)
+	) << std::endl;
+
 	return true; //Success
 }
 
@@ -87,6 +94,13 @@ bool addGateIO(
 ) {
 	//Semi-Overload of addGate() that handles named inputs/outputs.
 	switch (type) {
+		case G_FALSE: case G_TRUE: {
+			return addGate(
+				type, args.at("out"), "", ""
+			);
+			break;
+		}
+
 		case G_NOT: case G_PASSTHROUGH: case G_PULSE:
 		case G_DELAY: case G_DFF: {
 			//[Name](in=?, out=?);
@@ -135,6 +149,7 @@ bool addGateIO(
 
 bool createGates() {
 	//Uses map to convert named ids into actual values.
+	//for (const types::GateTemplate& templ : templates) {std::cout << templ.name << std::endl;}
 	unsigned int gateIndex = 0u;
 	for (const types::GateTemplate& templ : templates) {
 		unsigned int inputs[3];

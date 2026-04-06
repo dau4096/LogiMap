@@ -2,22 +2,20 @@
 
 CHIP FullAdder {
 
-	IN A, B, CarryIn;
-	OUT Sum, CarryOut;
+	IN a, b, c;
+	OUT sum, carry;
 
 	PARTS:
 	
 	//Half adder (A, B)
-	Xor(a=A, b=B, out=HA0xor);
-	And(a=A, b=B, out=HA0and);
+	HalfAdder(a=a, b=b, sum=HA0s, carry=HA0c);
 
 	//Half adder (Q, C)
-	Xor(a=HA0xor, b=CarryIn, out=HA1xor);
-	And(a=HA0xor, b=CarryIn, out=HA1and);
+	HalfAdder(a=HA0s, b=c, sum=HA1s, carry=HA1c);
 
 	//Final OR
-	Or(a=HA0and, b=HA1and, out=CarryOut);
-	Passthrough(in=HA1xor, out=Sum);
+	Or(a=HA0c, b=HA1c, out=carry);
+	Passthrough(in=HA1s, out=sum);
 
 }
 

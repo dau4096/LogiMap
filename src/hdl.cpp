@@ -74,11 +74,11 @@ bool getIODefs(
 		std::sregex_iterator endIn, endOut;
 
 		//For def in each line, format them the same as the other names, so they can be properly referenced.
-		for (; itIn!=endIn; itIn++) {inputs.push_back(filePath + ":" + (*itIn)[0].str());}
-		for (; itOut!=endOut; itOut++) {outputs.push_back(filePath + ":" + (*itOut)[0].str());}
+		for (; itIn!=endIn; itIn++) {inputs.push_back(filePath + ".0" + ":" + (*itIn)[0].str());}
+		for (; itOut!=endOut; itOut++) {outputs.push_back(filePath + ".0" + ":" + (*itOut)[0].str());}
 		return true;
 
-	} else {return false; /* Failed to find CHIP I/O */}
+	} else {return false; /* Failed to find CHIP I/O, Required else simulating is useless. */}
 }
 
 
@@ -98,19 +98,23 @@ void getArgs(
 		const std::smatch& argMatch = *itArg;
 		std::string argName = argMatch[1].str();
 		std::string argValue = argMatch[2].str();
-		auto itThis = externArgMap.find(argName);
+		std::cout << argName;
+		auto itThis = externArgMap.find(argValue);
 		if (itThis != externArgMap.end()) {
 			//Replacement exists.
-			argValue = itThis->second;
+			chipArgs[argName] = itThis->second; //Just use the parent chip's name for it.
+			std::cout << " Using previous: " << itThis->second << std::endl;
+		} else {
+			chipArgs[argName] = prefix + ":" + argValue; //Add a prefix so the same name in multiple files doesn't get "shared" unintentionally.
+			std::cout << " Using new: " << (prefix + ":" + argValue) << std::endl;
 		}
-		chipArgs[argName] = prefix + ":" + argValue; //Add a prefix so the same name in multiple files doesn't get "shared" unintentionally.
 	}
 }
 
 
 
 bool parseRecurse(
-	const std::string& filePath,
+	const std::string& filePath, unsigned int callNumber,
 	std::unordered_set<std::string> visited, //Don't reference (instead copy), so the same chip *can* be called in multiple different recurse branches, but not in the same branch.
 	const std::unordered_map<std::string, std::string>& arguments //Map to convert internal I/O arg names to external, for this call.
 ) {
@@ -123,10 +127,13 @@ bool parseRecurse(
 		std::cerr << "[HDL_LOAD_FAIL] Could not find file: \"" + filePath + "\"" << std::endl;
 		return false; //File does not exist, return failure.
 	}
+	visited.insert(filePath);
 
 	//For each chip call in the file.
 	std::sregex_iterator itCall = std::sregex_iterator(source.begin(), source.end(), chipRegex);
 	std::sregex_iterator end;
+
+	std::vector<types::Chip> chipsToProcess = {};
 
 	for (; itCall!=end; itCall++) {
 		//For each match in the source (Each call such like `And(a=a, b=b, out=c)`)..
@@ -134,34 +141,49 @@ bool parseRecurse(
 
 		//Get inputs/outputs
 		std::unordered_map<std::string, std::string> chipArgs;
-		getArgs(chipArgs, chipMatch, filePath, arguments);
+		getArgs(
+			chipArgs, chipMatch,
+			filePath + "." + std::to_string(callNumber++), //Prefix, to stop multiple different gate calls accidently sharing the same IO names.
+			arguments
+		);
 		
 		//Check if its a default chip inside the LogiMap (Like And, Or, DFF etc.)
 		const std::string chipName = chipMatch[1].str();
 		auto itName = defaultChipNames.find(chipName);
 		if (itName != defaultChipNames.end()) {
 			//Must be a default chip.
+			std::cout << "Adding: " << chipName << std::endl;
 			logic::addGateIO(itName->second, chipArgs);
 		} else {
 			//User defined chip, recurse into the relevant named file.
-			if (visited.contains(filePath)) {return false; /* No infinite loops of chips. */}
-			visited.insert(filePath);
-
+			std::string newFilePath;
 			std::smatch dirMatch;
+			std::cout << "Recursing on " << chipName << std::endl;
 			if (std::regex_search(filePath, dirMatch, dirRegex)) {
-				std::string newFilePath = dirMatch[1].str() + chipName + ".hdl";
-				bool success = parseRecurse(
-					newFilePath, visited, chipArgs
-				);
-				if (!success) {return false;}
+				newFilePath = dirMatch[1].str() + chipName + ".hdl";
 			} else {
 				//Unknown file format. Just try in HDL/
-				bool success = parseRecurse(
-					"HDL/" + chipName + ".hdl", visited, chipArgs
-				);
-				if (!success) {return false;}
+				newFilePath = "HDL/" + chipName + ".hdl";
+			}
+
+			if (visited.contains(newFilePath)) {
+				std::cerr << "Recursive call of " << newFilePath << " found." << std::endl;
+				return false; //No infinite loops of chips.
+			}
+			chipsToProcess.push_back(types::Chip(
+				newFilePath, chipArgs
+			));
+			for (const auto [key, value] : chipArgs) {
+				std::cout << key << ": " << value << std::endl;
 			}
 		}
+	}
+
+	for (const types::Chip& chip : chipsToProcess) {
+		bool success = parseRecurse(
+			chip.path, callNumber, visited, chip.args
+		);
+		if (!success) {return false; /* Failed to parse. */}
 	}
 
 	return true;
@@ -189,7 +211,7 @@ void parse(const std::string filePath) {
 
 	//Read chips called in `PARTS:` section.
 	std::unordered_set<std::string> visited = {}; //Set of chips already found, to stop infinite loops.
-	bool parseSuccess = parseRecurse(fullFilePath, visited, arguments);
+	bool parseSuccess = parseRecurse(fullFilePath, 0u, visited, arguments);
 	if (!parseSuccess) {
 		//Failed to load HDL system.
 		return;
