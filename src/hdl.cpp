@@ -9,9 +9,7 @@
 #include "types.h"
 #include "utils.h"
 #include "logic.h"
-
-
-#define ROOT_PREFIX "ROOT:"
+#include "graphics.h"
 
 
 const std::regex chipRegex = std::regex(R"(([A-Z][a-zA-Z0-9_]+)\(([a-zA-Z0-9_=, ]+)\);)"); //For name(key=value, key=value);
@@ -36,19 +34,22 @@ const std::unordered_map<std::string, GateType> defaultChipNames = {
 unsigned int ID = 0u;
 
 
-
 void addIOGates(
 	const std::unordered_set<std::string>& inputs,
 	const std::unordered_set<std::string>& outputs
 ) {
+	std::cout << "Inputs: ";
 	for (const std::string& in : inputs) {
-		logic::addGate(G_FALSE, ROOT_PREFIX + in); //Replace with some G_INPUT type later.
+		std::cout << in << ", ";
+		logic::addGate(G_INPUT, constants::ROOT_PREFIX + in);
 	}
 
-	//std::cout << "\nOutputs: ";
+	std::cout << "\nOutputs: ";
 	for (const std::string& out : outputs) {
-		//logic::addGate(G_OUTPUT, "ROOT:" + out); //Uncomment when G_OUTPUT is added.
+		std::cout << out << ", ";
+		logic::addGate(G_OUTPUT, out, "ROOT:" + out);
 	}
+	std::cout << std::endl;
 }
 
 
@@ -104,6 +105,9 @@ std::string getDirectory(const std::string& filePath) {
 
 
 namespace HDL {
+
+std::unordered_set<std::string> inputs;
+std::unordered_set<std::string> outputs;
 
 
 bool getIODefs(
@@ -180,20 +184,21 @@ bool parseRecursive(const std::string& filePath, const std::unordered_map<std::s
 
 void parse(const std::string filePath) {
 	//Read some file, and split it into its calls to other chips.
-	std::unordered_set<std::string> inputs, outputs;
 	getIODefs(filePath, inputs, outputs);
 	addIOGates(inputs, outputs);
 
 	std::unordered_map<std::string, std::string> argumentMap; //Create mapping of inputs to parent chip's wire names. Presently just maps main file IO to itself.
-	for (const std::string& in : inputs) {argumentMap[in] = ROOT_PREFIX + in;}
-	for (const std::string& out : outputs) {argumentMap[out] = ROOT_PREFIX + out;}
+	for (const std::string& in : inputs) {argumentMap[in] = constants::ROOT_PREFIX + in;}
+	for (const std::string& out : outputs) {argumentMap[out] = constants::ROOT_PREFIX + out;}
 
 
-	parseRecursive(filePath, argumentMap, ROOT_PREFIX);
+	parseRecursive(filePath, argumentMap, constants::ROOT_PREFIX);
 
 
 	logic::createGates();
 	logic::structureLogic();
+
+	graphics::createIOSSBO(inputs.size() + outputs.size());
 }
 
 

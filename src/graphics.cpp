@@ -14,6 +14,7 @@
 #include "types.h"
 #include "global.h"
 #include "utils.h"
+#include "hdl.h"
 
 
 void APIENTRY openGLErrorCallback(
@@ -282,32 +283,7 @@ GLuint createComputeShader(std::string compShaderName) {
 
 
 
-//// TEXTURES ////
-void saveImage(GLuint textureID, glm::ivec2 resolution, bool silent=false) {
-	std::vector<unsigned char> pixels(resolution.x * resolution.y * 3u);
-
-	glBindTexture(GL_TEXTURE_2D, textureID);
-	glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
-	glBindTexture(GL_TEXTURE_2D, 0);
-
-	stbi_flip_vertically_on_write(true);
-
-	std::filesystem::path dirName = std::filesystem::path("saved.images");
-	std::filesystem::create_directories(dirName);
-
-	std::string timeStr = utils::getTimestamp();
-	std::filesystem::path imagePath = dirName / (timeStr + ".png");
-
-	stbi_write_png(
-		imagePath.string().c_str(),
-		resolution.x, resolution.y,
-		3u, pixels.data(), resolution.x*3u
-	);
-
-	if (!silent) {std::cout << "Successfully saved image as : [" << imagePath << "]" << std::endl;}
-}
-
-
+//// TEXTURES AND BUFFERS ////
 
 GLuint createGLImage2D(
 	unsigned int width, unsigned int height,
@@ -334,7 +310,27 @@ GLuint createGLImage2D(
 	return textureID;
 }
 
-//// TEXTURES ////
+
+void createIOSSBO(size_t size=0u) {
+	if (size == 0u) {return;}
+
+	glGenBuffers(1, &GLIndex::IOSSBO);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, GLIndex::IOSSBO);
+	glBufferStorage(
+		GL_SHADER_STORAGE_BUFFER, size*sizeof(GLuint), nullptr,
+		GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT
+	);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, GLIndex::IOSSBO); //Binding of 0.
+
+	GLIndex::IOptr = glMapBufferRange(
+		GL_SHADER_STORAGE_BUFFER, 0, size*sizeof(GLuint),
+		GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT
+	);
+
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+}
+
+//// TEXTURES AND BUFFERS ////
 
 
 
@@ -409,35 +405,46 @@ namespace tick {
 
 void run(void) {
 
-	glUseProgram(GLIndex::tickShader);
-	unsigned int Xdispatch = (maxGatesInLayer + 31u) / 32u; //Local size is (32,1,1)
+	if (tickNumber < constants::NUMBER_OF_TICKS_TO_SIM) {
+		glUseProgram(GLIndex::tickShader);
+		unsigned int Xdispatch = (maxGatesInLayer + 31u) / 32u; //Local size is (32,1,1)
 
-#ifdef CONCURRENT_LAYERS
-	
-	uniforms::bindUniformValue(GLIndex::tickShader, "baseLayerIndex", (GLuint)(0u));
-	uniforms::bindUniformValue(GLIndex::tickShader, "numGatesInLayer", (GLuint)(maxGatesInLayer));
-	glBindImageTexture(0, GLIndex::logiMap, 0, GL_FALSE, 0, GL_READ_WRITE,  GL_RGBA32UI);
-	glDispatchCompute(
-		Xdispatch,
-		numberOfLayers,
-		1u
-	);
-	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_UPDATE_BARRIER_BIT);
-
-#else
-
-	for (GLuint i=0u; i<numberOfLayers; i++) {
-		uniforms::bindUniformValue(GLIndex::tickShader, "baseLayerIndex", i);
-		uniforms::bindUniformValue(GLIndex::tickShader, "numGatesInLayer", (GLuint)(gateLayers[i].size()));
+	#ifdef CONCURRENT_LAYERS
+		
+		uniforms::bindUniformValue(GLIndex::tickShader, "baseLayerIndex", (GLuint)(0u));
+		uniforms::bindUniformValue(GLIndex::tickShader, "numGatesInLayer", (GLuint)(maxGatesInLayer));
 		glBindImageTexture(0, GLIndex::logiMap, 0, GL_FALSE, 0, GL_READ_WRITE,  GL_RGBA32UI);
 		glDispatchCompute(
 			Xdispatch,
-			1, 1
+			numberOfLayers,
+			1u
 		);
 		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_UPDATE_BARRIER_BIT);
-	}
 
-#endif
+	#else
+
+		for (GLuint i=0u; i<numberOfLayers; i++) {
+			uniforms::bindUniformValue(GLIndex::tickShader, "baseLayerIndex", i);
+			uniforms::bindUniformValue(GLIndex::tickShader, "numGatesInLayer", (GLuint)(gateLayers[i].size()));
+			glBindImageTexture(0, GLIndex::logiMap, 0, GL_FALSE, 0, GL_READ_WRITE,  GL_RGBA32UI);
+			glDispatchCompute(
+				Xdispatch,
+				1, 1
+			);
+			glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_UPDATE_BARRIER_BIT);
+		}
+
+	#endif
+
+	#ifdef DISPLAY_OUTPUTS
+		for (const std::string& out : HDL::outputs) {
+			unsigned int index = types::IOmap[out];
+			GLuint value = ((GLuint*)(GLIndex::IOptr))[index];
+			std::cout << out << ": " << ((value > 0u) ? "True" : "False") << std::endl;
+		}
+		std::cout << std::endl;
+	#endif
+	}
 
 	glUseProgram(0);
 

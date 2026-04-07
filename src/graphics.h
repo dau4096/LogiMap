@@ -36,8 +36,8 @@ namespace graphics {
 
 
 	//// TEXTURES ////
-	void saveImage(GLuint textureID, bool silent=false);
 	GLuint createGLImage2D(size_t width, size_t height, GLint internalFormat=GL_RGBA32F, GLint samplingType=GL_NEAREST, GLint edgeSampling=GL_REPEAT);
+	void createIOSSBO(size_t size=0u);
 	//// TEXTURES ////
 
 

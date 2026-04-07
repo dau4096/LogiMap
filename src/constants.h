@@ -1,9 +1,8 @@
 #pragma once
 
+
+#include <string>
 #include "includes.h"
-#include <glm/glm.hpp>
-
-
 
 
 namespace constants {
@@ -16,6 +15,10 @@ namespace constants {
 
 	constexpr float TO_RAD = 0.017453f;
 	constexpr float TO_DEG = 57.29577f;
+
+
+	const std::string ROOT_PREFIX = "ROOT:";
+	constexpr unsigned int NUMBER_OF_TICKS_TO_SIM = 1;
 
 }
 

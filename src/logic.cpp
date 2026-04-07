@@ -16,6 +16,8 @@ std::unordered_map<std::string, unsigned int> nameMap = {{"", INVALID_ID},};
 std::vector<types::GateTemplate> templates = {};
 std::vector<types::Gate> gates = {};
 
+
+
 namespace logic {
 
 
@@ -106,6 +108,7 @@ bool addGateIO(
 ) {
 	//Semi-Overload of addGate() that handles named inputs/outputs.
 	switch (type) {
+		//True/False "gates"
 		case G_FALSE: case G_TRUE: {
 			return addGate(
 				type, args.at("out"), "", ""
@@ -113,6 +116,7 @@ bool addGateIO(
 			break;
 		}
 
+		//All other forms.
 		case G_NOT: case G_PASSTHROUGH: case G_PULSE:
 		case G_DELAY: case G_DFF: {
 			//[Name](in=?, out=?);
@@ -134,7 +138,7 @@ bool addGateIO(
 		case G_MUX: {
 			//[Name](a=?, b=?, sel=?, out=?);
 			return addGate(
-				type, args.at("out"), args.at("a"), args.at("b"), args.at("sel")
+				G_MUX, args.at("out"), args.at("a"), args.at("b"), args.at("sel")
 			);
 			break;
 		}
@@ -142,7 +146,7 @@ bool addGateIO(
 		case G_JK: {
 			//[Name](set=?, reset=?, out=?);
 			return addGate(
-				type, args.at("out"), args.at("set"), args.at("reset"), ""
+				G_JK, args.at("out"), args.at("set"), args.at("reset"), ""
 			);
 			break;
 		}
@@ -217,7 +221,7 @@ bool createGates() {
 			inputs[i] = it->second;
 		}
 		gates.push_back(types::Gate(
-			gateIndex++, templ.type, inputs
+			gateIndex++, templ.type, inputs, templ.name
 		));
 	}
 

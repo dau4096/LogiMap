@@ -5,9 +5,14 @@
 layout(local_size_x=32, local_size_y=1, local_size_z=1) in;
 layout(rgba32ui, binding=0) uniform uimage2D logiMap;
 
+layout(binding=0) buffer IOSSBO {
+	uint IO[];
+};
 
 uniform uint baseLayerIndex;
 uniform uint numGatesInLayer;
+
+
 
 
 #include <gateTypes> //For the gate functions.
@@ -54,20 +59,32 @@ uint getInput(in ivec2 index) {
 void main(void) {
 
 	ivec2 gateIndex = ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y + baseLayerIndex);
-	if (gateIndex.x >= numGatesInLayer) {return;}
-	uvec4 gateData = imageLoad(logiMap, gateIndex).xyzw;
+	if (gateIndex.x >= numGatesInLayer) {return; /* Too many threads in dispatch. */}
+	uvec4 gateData = imageLoad(logiMap, gateIndex).xyzw; //Read from texture.
+
 
 	uint gateType;
 	uint internalState, externalState;
 	ivec2 inputIndices[3]; //Indices of inputs A/B/C (like gateIndex.)
 	unpackGateValues(gateData, gateType, internalState, externalState, inputIndices);
 
-	uint inputs[3]; //Actual input states
-	for (uint i=0u; i<3u; i++) {inputs[i] = getInput(inputIndices[i]);}
+	//Specifically process input/outputs seperately, outside of processGate, as they need the ivec2 indices.
+	if (gateType == G_INPUT) {
+		uint IOidx = inputIndices[0].x; //"Index" from inputIndices[0].
+		externalState = IO[IOidx];
 
-	processGate(gateType, inputs, internalState, externalState);
+	} else if (gateType == G_OUTPUT) {
+		uint IOidx = inputIndices[0].x; //"Index" from inputIndices[0].
+		IO[IOidx] = getInput(inputIndices[1]); //Use value (uint-bool) of inputs[1].
+
+	} else {
+		uint inputs[3]; //Actual input states
+		for (uint i=0u; i<3u; i++) {inputs[i] = getInput(inputIndices[i]);}
+
+		processGate(gateType, inputs, internalState, externalState); //Calculate out state of gate this tick.
+	}
 
 	
-	repackGateValues(gateData, internalState, externalState);
-	imageStore(logiMap, gateIndex, gateData);
+	repackGateValues(gateData, internalState, externalState); //Repack into the texture's format.
+	imageStore(logiMap, gateIndex, gateData); //Write back to texture.
 }

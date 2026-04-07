@@ -13,7 +13,7 @@ inline std::unordered_map<int, bool> keyMap = {
 };
 
 
-inline unsigned int frameNumber;
+inline unsigned int tickNumber;
 
 
 inline unsigned int maxGatesInLayer;
@@ -25,5 +25,9 @@ namespace GLIndex {
 //Any indices required for OpenGL stuff.
 inline GLuint logiMap;
 inline GLuint tickShader;
+
+//IO data
+inline GLuint IOSSBO;
+inline void* IOptr;
 
 }

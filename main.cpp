@@ -52,7 +52,7 @@ int main() {
 	graphics::prepareOpenGL();
 
 
-	frameNumber = 0u;
+	tickNumber = 0u;
 	while (!glfwWindowShouldClose(Window)) {
 		double frameStart = glfwGetTime();
 		handleInputs();
@@ -63,7 +63,7 @@ int main() {
 	#ifdef HAS_WINDOW
 		glfwSwapBuffers(Window);
 	#endif
-		frameNumber++;
+		tickNumber++;
 	}
 
 

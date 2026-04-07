@@ -7,8 +7,7 @@
 #define G_BLANK 0x00u
 #define G_TRUE 0x01u
 #define G_FALSE 0x02u
-//Maybe?
-//Could INPUT via uniforms (?) and output via CPU-side data reading? Unsure. Consider further.
+//IO
 #define G_INPUT 0x03u
 #define G_OUTPUT 0x04u
 
@@ -55,8 +54,6 @@ void processGate(
 			externalState = 0u;
 			break;
 		}
-
-
 
 
 
