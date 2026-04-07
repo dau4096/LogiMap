@@ -1,6 +1,6 @@
-/* FullAdder.hdl */
+/* FullAdderFull.hdl */
 
-CHIP FullAdder {
+CHIP FullAdderFull {
 
 	IN a, b, c;
 	OUT sum, carry;
@@ -8,10 +8,12 @@ CHIP FullAdder {
 	PARTS:
 	
 	//Half adder (A, B)
-	HalfAdder(a=a, b=b, sum=HA0s, carry=HA0c);
+	Xor(a=a, b=b, out=HA0s);
+	And(a=a, b=b, out=HA0c);
 
 	//Half adder (Q, C)
-	HalfAdder(a=HA0s, b=c, sum=HA1s, carry=HA1c);
+	Xor(a=HA0s, b=c, out=HA1s);
+	And(a=HA0s, b=c, out=HA1c);
 
 	//Final OR
 	Or(a=HA0c, b=HA1c, out=carry);

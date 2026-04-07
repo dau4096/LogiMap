@@ -48,7 +48,7 @@ int main() {
 
 
 	//Initialise.
-	HDL::parse("Test.hdl");
+	HDL::parse("HDL/FullAdderSplit.hdl");
 	graphics::prepareOpenGL();
 
 
