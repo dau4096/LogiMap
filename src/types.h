@@ -3,6 +3,7 @@
 #define TYPES_H
 
 #include "includes.h"
+#include <string>
 
 
 //Mirrors the #define version found in the gateTypes.glsl shader helper file.
@@ -86,6 +87,17 @@ struct GateTemplate {
 	std::string name;
 	GateType type;
 	std::string inputs[3];
+};
+
+
+
+struct Chip {
+	std::string filePath;
+	std::unordered_map<std::string, std::string> args;
+
+	Chip() : filePath(""), args() {}
+	Chip(const std::string& p, const std::unordered_map<std::string, std::string>& a)
+		: filePath(p), args(a) {}
 };
 
 

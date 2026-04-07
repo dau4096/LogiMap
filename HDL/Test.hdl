@@ -1,11 +1,15 @@
 /* Test.hdl */
 
 CHIP Test {
-	//No inputs/outputs
+
+	IN a;
+	OUT e;
 
 	PARTS:
 
-	Test2(a=0, b=1);
-	And(a=0, b=1);
+	Passthrough(in=a, out=b);
+	Pass(x=b, y=c);
+	Passthrough(in=c, out=e);
+	Pass(in=c, out=d);
 
 }

@@ -18,6 +18,8 @@ std::vector<types::Gate> gates = {};
 
 namespace logic {
 
+
+
 void structureLogic() { //Make a copy, as values [will] be removed from it in processing.
 	//Loop through all of the gates, find those with "No dependencies" (Such as G_TRUE/G_FALSE etc.)
 	for (unsigned int gateIndex=0u; gateIndex<gates.size();) {
@@ -35,14 +37,17 @@ void structureLogic() { //Make a copy, as values [will] be removed from it in pr
 
 	//Now loop through until gates is empty, adding gates to new layers when all of their dependencies are fulfilled.
 	unsigned int layer = 1u;
+	unsigned int prevSize = gates.size();
 	while (gates.size() > 0u) {
 		for (unsigned int gateIndex=0u; gateIndex<gates.size();) {
-			types::Gate& gate = gates[gateIndex];
+			types::Gate gate = gates[gateIndex];
+
 			bool satisfied = true;
 			for (unsigned int i=0u; i<gate.numInputs; i++) {
 				unsigned int gIdx = gate.inputs[i];
 				satisfied &= isGateSatisfied(layer, gIdx); //Compare this layer, and the referenced gate's layer.
 			}
+
 			if (satisfied) {
 				//Can add this gate.
 				writeGateToLayer(layer, gate);
@@ -50,7 +55,14 @@ void structureLogic() { //Make a copy, as values [will] be removed from it in pr
 			} else {
 				gateIndex++;
 			}
+
 		}
+
+		if (gates.size() == prevSize) {
+			std::cerr << "[STRUCTURE_FAIL] Infinite loop detected from " << gates.size() << " logic components." << std::endl;
+			break;
+		}
+		prevSize = gates.size();
 
 		layer++;
 	}
@@ -62,7 +74,7 @@ bool addGate(const GateType type, const std::string name, const std::string in0=
 	auto it = nameMap.find(name);
 	if (it != nameMap.end()) {
 		//Name already taken by another gate
-		std::cerr << "Cannot use the same name for 2 gates! \"" << name << "\" is already being used by another gate." << std::endl;
+		std::cerr << "[STRUCTURE_FAIL] Cannot use the same name for 2 gates! \"" << name << "\" is already being used by another gate." << std::endl;
 		return false; //Failure
 	}
 
@@ -77,6 +89,13 @@ bool addGate(const GateType type, const std::string name, const std::string in0=
 	templ.inputs[2] = in2;
 	templates.push_back(templ);
 
+#ifdef VERBOSE
+	std::cout << std::format(
+		"IN: \"{}\" \"{}\" \"{}\"    OUT: \"{}\"    TYPE: {}",
+		in0, in1, in2, name, std::to_string(type)
+	) << std::endl;
+#endif
+
 	return true; //Success
 }
 
@@ -87,6 +106,13 @@ bool addGateIO(
 ) {
 	//Semi-Overload of addGate() that handles named inputs/outputs.
 	switch (type) {
+		case G_FALSE: case G_TRUE: {
+			return addGate(
+				type, args.at("out"), "", ""
+			);
+			break;
+		}
+
 		case G_NOT: case G_PASSTHROUGH: case G_PULSE:
 		case G_DELAY: case G_DFF: {
 			//[Name](in=?, out=?);
@@ -135,8 +161,52 @@ bool addGateIO(
 
 bool createGates() {
 	//Uses map to convert named ids into actual values.
+
+#ifdef SORT_TEMPLATES
+	//Sort templates so that inputs of a gate are always added before itself.
+	std::vector<std::string> definedOutputs = {"",};
+	std::vector<types::GateTemplate> sortedTemplates = {};
+
+	unsigned int numTemplates = templates.size();
+	unsigned int prevSize = numTemplates;
+	while (sortedTemplates.size() < numTemplates) {
+		for (unsigned int templID=0u; templID<templates.size();) {
+			const types::GateTemplate templ = templates[templID];
+
+			bool satisfied = true;
+			for (unsigned int i=0u; i<3; i++) {
+				auto it = std::find(definedOutputs.begin(), definedOutputs.end(), templ.inputs[i]);
+				satisfied &= (it != definedOutputs.end());
+			}
+
+			if (satisfied) {
+				definedOutputs.push_back(templ.name);
+				sortedTemplates.emplace_back(templ);
+				templates.erase(templates.begin() + templID);
+			} else {
+				templID++;
+			}
+		}
+
+		if (templates.size() == prevSize) {break; /* Infinite loop of some sort, can't define. */}
+		prevSize = templates.size();
+	}
+
+
+	sortedTemplates.insert(sortedTemplates.end(), templates.begin(), templates.end());
+
+	unsigned int ID = 0u;
+	for (const types::GateTemplate& templ : sortedTemplates) {nameMap[templ.name] = ID++;}
+#endif
+
+
+	//Create each gate entry.
 	unsigned int gateIndex = 0u;
+#ifdef SORT_TEMPLATES
+	for (const types::GateTemplate& templ : sortedTemplates) {
+#else
 	for (const types::GateTemplate& templ : templates) {
+#endif
 		unsigned int inputs[3];
 		for (unsigned int i=0u; i<3u; i++) {
 			auto it = nameMap.find(templ.inputs[i]);

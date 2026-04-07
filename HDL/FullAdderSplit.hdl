@@ -1,0 +1,21 @@
+/* FullAdderSplit.hdl */
+
+CHIP FullAdderSplit {
+
+	IN a, b, c;
+	OUT sum, carry;
+
+	PARTS:
+	
+	//Half adder (A, B)
+	HalfAdder(a=a, b=b, sum=HA0s, carry=HA0c);
+
+	//Half adder (Q, C)
+	HalfAdder(a=HA0s, b=c, sum=HA1s, carry=HA1c);
+
+	//Final OR
+	Or(a=HA0c, b=HA1c, out=carry);
+	Passthrough(in=HA1s, out=sum);
+
+}
+

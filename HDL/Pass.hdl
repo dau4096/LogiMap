@@ -1,0 +1,12 @@
+/* Pass.hdl */
+
+CHIP Pass {
+
+	IN x;
+	OUT y;
+
+	PARTS:
+
+	Passthrough(in=x, out=y);
+
+}
