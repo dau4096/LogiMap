@@ -47,7 +47,7 @@ namespace graphics {
 
 namespace tick {
 
-	void run(void);
+	void run(bool step);
 
 }
 

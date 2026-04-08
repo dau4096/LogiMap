@@ -39,19 +39,22 @@ int main() {
 	#pragma execution_character_set("utf-8") //Linux.
 #endif
 
-
-#ifdef HAS_WINDOW
-	glm::ivec2 res = glm::ivec2(640, 360);
-#else
-	glm::ivec2 res = glm::ivec2(1, 1);
-#endif
-	Window = graphics::initialiseWindow(res, "LogiMap/Main");
+	Window = graphics::initialiseWindow(glm::ivec2(1, 1), "LogiMap/Main");
 	utils::GLErrorcheck("Window Creation", true);
+
+	//Read HDL file
+	HDL::parse("HDL/FullAdderSplit.hdl");
 
 
 	//Initialise.
-	HDL::parse("HDL/FullAdderSplit.hdl");
 	graphics::prepareOpenGL();
+#ifdef HAS_WINDOW
+	//Resize window
+	glm::ivec2 res = glm::ivec2(maxGatesInLayer, numberOfLayers) * display::WINDOW_SCALING_FACTOR;
+	glViewport(0, 0, res.x, res.y);
+	glfwSetWindowSize(Window, res.x, res.y);
+#endif
+
 
 
 #ifdef TICK_STEP
@@ -65,14 +68,15 @@ int main() {
 		handleInputs();
 		if (keyMap[GLFW_KEY_ESCAPE]) {break; /* Quit Immediately, ESC pressed. */}
 
-		#if TICK_STEP
-		if (keyMap[GLFW_KEY_SPACE] && !prevStep) {
-			//If space starts being pressed this poll, run tick.
-			tick::run();
-		}
-		#else
-		tick::run();
-		#endif
+
+	#ifdef TICK_STEP
+		bool step = (keyMap[GLFW_KEY_SPACE] && !prevStep);
+	#else
+		bool step = (tickNumber < constants::NUMBER_OF_TICKS_TO_SIM);
+	#endif
+		tick::run(step);
+
+
 
 	#ifdef HAS_WINDOW
 		glfwSwapBuffers(Window);

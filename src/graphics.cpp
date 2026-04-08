@@ -152,6 +152,10 @@ GLuint compileShader(GLenum shaderType, string filePath) {
 
 
 
+
+
+
+
 namespace uniforms {
 
 //Uniforms; [Many overloads]
@@ -242,6 +246,9 @@ GLFWwindow* initialiseWindow(glm::ivec2 resolution, const char* title) {
 		utils::raise("Failed to create GLFW window");
 		return nullptr;
 	}
+#ifndef HAS_WINDOW
+	glfwHideWindow(Window);
+#endif
 	glfwMakeContextCurrent(Window);
 
 	glewExperimental = GL_TRUE;
@@ -249,10 +256,40 @@ GLFWwindow* initialiseWindow(glm::ivec2 resolution, const char* title) {
 		utils::raise("Failed to initialize GLEW.");
 	}
 
+
+
 	return Window;
 }
 
 
+
+
+
+GLuint createShaderProgram(std::string fragShaderName, std::string vertexShaderName) {
+	GLuint vertexShader = compileShader(GL_VERTEX_SHADER, "src/shaders/"+ vertexShaderName);
+	GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, "src/shaders/"+ fragShaderName);
+
+	GLuint shaderProgram = glCreateProgram();
+	glAttachShader(shaderProgram, vertexShader);
+	glAttachShader(shaderProgram, fragmentShader);
+	glLinkProgram(shaderProgram);
+
+	GLint success;
+	glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+	if (!success) {
+		if (!utils::isConsoleVisible()) {
+			utils::showConsole();
+		}
+		char infolog[512];
+		glGetProgramInfoLog(shaderProgram, 512, nullptr, infolog);
+		utils::raise("Error: Program linking failed;\n" + string(infolog));
+	}
+
+	glDeleteShader(vertexShader);
+	glDeleteShader(fragmentShader);
+
+	return shaderProgram;
+}
 
 
 GLuint createComputeShader(std::string compShaderName) {
@@ -278,7 +315,11 @@ GLuint createComputeShader(std::string compShaderName) {
 	return shaderProgram;
 }
 
-
+inline GLuint getEmptyVAO() {
+	GLuint VAO;
+	glGenVertexArrays(1, &VAO);
+	return VAO;
+}
 
 
 
@@ -386,6 +427,11 @@ void prepareOpenGL(void) {
 
 	GLIndex::tickShader = createComputeShader("tick.comp");
 
+#ifdef HAS_WINDOW
+	GLIndex::genericVAO = getEmptyVAO();
+	GLIndex::displayShader = createShaderProgram("display.frag", "screenspace.vert");
+#endif
+
 
 	//Debug settings
 	glEnable(GL_DEBUG_OUTPUT);
@@ -403,13 +449,23 @@ void prepareOpenGL(void) {
 
 namespace tick {
 
-void run(void) {
 
-#ifndef TICK_STEP
-	if (tickNumber < constants::NUMBER_OF_TICKS_TO_SIM) {
-#else
-	if (1) {
-#endif
+inline void renderingGeneric(const std::string& shaderName="") {
+	glBindVertexArray(GLIndex::genericVAO);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	glBindVertexArray(0);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+	if (!shaderName.empty()) {
+		utils::GLErrorcheck(shaderName, true);
+	}
+}
+
+
+
+void run(bool step) {
+
+	if (step) {
 
 		glUseProgram(GLIndex::tickShader);
 		unsigned int Xdispatch = (maxGatesInLayer + 31u) / 32u; //Local size is (32,1,1)
@@ -450,7 +506,17 @@ void run(void) {
 		}
 		std::cout << std::endl;
 	#endif
+
 	}
+
+
+#ifdef HAS_WINDOW
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glUseProgram(GLIndex::displayShader);
+	glBindTextureUnit(0, GLIndex::logiMap); //Bind to display.
+	renderingGeneric("Display Shader");
+#endif
+
 
 	glUseProgram(0);
 

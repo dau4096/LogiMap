@@ -24,8 +24,9 @@ inline unsigned int numberOfLayers;
 namespace GLIndex {
 
 //Any indices required for OpenGL stuff.
+inline GLuint genericVAO;
 inline GLuint logiMap;
-inline GLuint tickShader;
+inline GLuint tickShader, displayShader;
 
 //IO data
 inline GLuint IOSSBO;

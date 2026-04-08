@@ -13,7 +13,7 @@ BINFILE = prgm.x86_64
 
 all: release
 
-release: CFLAGS += -O2 -ffast-math
+release: CFLAGS += -O2 -ffast-math -DHAS_WINDOW -DSORT_TEMPLATES -DDISPLAY_OUTPUTS -DTICK_STEP
 release: $(OBJECTS)
 	$(CC) $(OBJECTS) $(LIBS) $(INCLUDE) -o $(BINFILE)
 

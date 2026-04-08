@@ -9,7 +9,7 @@
 
 
 const std::vector<GateType> noDepGates = {
-	G_BLANK, G_FALSE, G_TRUE
+	G_BLANK, G_FALSE, G_TRUE, G_INPUT, G_OUTPUT
 };
 
 std::unordered_map<std::string, unsigned int> nameMap = {{"", INVALID_ID},};

@@ -28,5 +28,8 @@ namespace display {
 	constexpr int OPENGL_VERSION_MAJOR = 4;
 	constexpr int OPENGL_VERSION_MINOR = 6;
 
+
+	constexpr int WINDOW_SCALING_FACTOR = 16;
+
 }
 
