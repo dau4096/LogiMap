@@ -12,7 +12,9 @@
 
 
 
-
+#ifdef TICK_STEP
+bool prevStep = false;
+#endif
 void handleInputs() {
 	glfwPollEvents();
 
@@ -52,17 +54,31 @@ int main() {
 	graphics::prepareOpenGL();
 
 
+#ifdef TICK_STEP
+	std::cout << "Press [SPACE] to advance simulation by 1 tick." << std::endl;
+#endif
+
+
 	tickNumber = 0u;
 	while (!glfwWindowShouldClose(Window)) {
 		double frameStart = glfwGetTime();
 		handleInputs();
 		if (keyMap[GLFW_KEY_ESCAPE]) {break; /* Quit Immediately, ESC pressed. */}
 
+		#if TICK_STEP
+		if (keyMap[GLFW_KEY_SPACE] && !prevStep) {
+			//If space starts being pressed this poll, run tick.
+			tick::run();
+		}
+		#else
 		tick::run();
+		#endif
 
 	#ifdef HAS_WINDOW
 		glfwSwapBuffers(Window);
 	#endif
+
+		prevStep = keyMap[GLFW_KEY_SPACE];
 		tickNumber++;
 	}
 

@@ -405,7 +405,12 @@ namespace tick {
 
 void run(void) {
 
+#ifndef TICK_STEP
 	if (tickNumber < constants::NUMBER_OF_TICKS_TO_SIM) {
+#else
+	if (1) {
+#endif
+
 		glUseProgram(GLIndex::tickShader);
 		unsigned int Xdispatch = (maxGatesInLayer + 31u) / 32u; //Local size is (32,1,1)
 
@@ -435,6 +440,7 @@ void run(void) {
 		}
 
 	#endif
+
 
 	#ifdef DISPLAY_OUTPUTS
 		for (const std::string& out : HDL::outputs) {

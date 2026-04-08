@@ -9,7 +9,8 @@ inline GLFWwindow* Window;
 
 inline std::unordered_map<int, bool> keyMap = {
 	//GLFW Enums mapped to boolean values (True if pressed.)
-	{GLFW_KEY_ESCAPE, false}, //Example
+	{GLFW_KEY_ESCAPE, false}, //Close program
+	{GLFW_KEY_SPACE, false} //Step to next tick.
 };
 
 
