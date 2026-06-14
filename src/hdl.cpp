@@ -2,7 +2,7 @@
 
 #include <regex>
 #include <unordered_map>
-#include <unordered_set>
+#include <set>
 #include <string>
 #include <iostream>
 
@@ -35,8 +35,8 @@ unsigned int ID = 0u;
 
 
 void addIOGates(
-	const std::unordered_set<std::string>& inputs,
-	const std::unordered_set<std::string>& outputs
+	const std::set<std::string>& inputs,
+	const std::set<std::string>& outputs
 ) {
 	std::cout << "Inputs: ";
 	for (const std::string& in : inputs) {
@@ -106,14 +106,14 @@ std::string getDirectory(const std::string& filePath) {
 
 namespace HDL {
 
-std::unordered_set<std::string> inputs;
-std::unordered_set<std::string> outputs;
+std::set<std::string> inputs;
+std::set<std::string> outputs;
 
 
 bool getIODefs(
 	const std::string& filePath,
-	std::unordered_set<std::string>& inputs,
-	std::unordered_set<std::string>& outputs,
+	std::set<std::string>& inputs,
+	std::set<std::string>& outputs,
 	const std::string prefix=""
 ) {
 

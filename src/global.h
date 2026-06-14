@@ -1,7 +1,7 @@
 #pragma once
+#include <unordered_map>
 #include "includes.h"
 #include "constants.h"
-using namespace std;
 
 
 inline GLFWwindow* Window;

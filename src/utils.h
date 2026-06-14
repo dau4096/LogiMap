@@ -5,6 +5,7 @@
 #include <vector>
 #include <stdexcept>
 #include <iomanip>
+#include <algorithm>
 
 #include "includes.h"
 #include "global.h"

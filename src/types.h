@@ -2,9 +2,11 @@
 #ifndef TYPES_H
 #define TYPES_H
 
+#include <string>
+#include <unordered_map>
+#include <vector>
 #include "constants.h"
 #include "includes.h"
-#include <string>
 
 
 //Mirrors the #define version found in the gateTypes.glsl shader helper file.
@@ -46,6 +48,8 @@ inline unsigned int IOcounter = 0u;
 namespace types {
 
 inline std::unordered_map<std::string, unsigned int> IOmap = {}; //Map of IO names to their indices.
+inline std::vector<std::string> inputNames = {}; //Vector of input names
+inline std::vector<std::string> outputNames = {}; //Vector of output names
 
 
 
@@ -96,6 +100,7 @@ struct Gate {
 				IOcounter, //Index into the IOSSBO.
 				0u, 0u //2 blank inputs (Unused)
 			);
+			inputNames.push_back(name);
 			IOmap[name] = IOcounter++; //Increment.
 
 		} else if (type == G_OUTPUT) {
@@ -109,6 +114,7 @@ struct Gate {
 				),
 				0u //Blank input (Unused)
 			);
+			outputNames.push_back(name);
 			IOmap[name] = IOcounter++; //Increment.
 
 		} else {

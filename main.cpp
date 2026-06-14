@@ -29,6 +29,17 @@ void handleInputs() {
 
 
 
+const std::vector<unsigned int> inputKeys = {
+	GLFW_KEY_GRAVE_ACCENT,
+	GLFW_KEY_1, GLFW_KEY_2,
+	GLFW_KEY_3, GLFW_KEY_4,
+	GLFW_KEY_5, GLFW_KEY_6,
+	GLFW_KEY_7, GLFW_KEY_8,
+	GLFW_KEY_9, GLFW_KEY_0,
+	GLFW_KEY_MINUS, GLFW_KEY_EQUAL,
+	GLFW_KEY_BACKSPACE
+};
+
 
 int main() {
 	try { //Catch exceptions
@@ -44,6 +55,12 @@ int main() {
 
 	//Read HDL file
 	HDL::parse("HDL/FullAdderSplit.hdl");
+
+
+	//Add input keys to keyMap.
+	for (unsigned int keyID : inputKeys) {
+		keyMap[keyID] = false;
+	}
 
 
 	//Initialise.
@@ -69,10 +86,19 @@ int main() {
 		if (keyMap[GLFW_KEY_ESCAPE]) {break; /* Quit Immediately, ESC pressed. */}
 
 
+		unsigned int keyID = 0u; //Index into input key vector.
+		for (std::string& inputName : types::inputNames) {
+			unsigned int index = types::IOmap[inputName];
+			((GLuint*)(GLIndex::IOptr))[index] = (keyMap[inputKeys[keyID++]]) ? 1u : 0u;
+			if (keyID >= inputKeys.size()) {break;}
+		}	
+
+
+
 	#ifdef TICK_STEP
 		bool step = (keyMap[GLFW_KEY_SPACE] && !prevStep);
 	#else
-		bool step = (tickNumber < constants::NUMBER_OF_TICKS_TO_SIM);
+		bool step = true;//(tickNumber < constants::NUMBER_OF_TICKS_TO_SIM);
 	#endif
 		tick::run(step);
 
@@ -82,7 +108,9 @@ int main() {
 		glfwSwapBuffers(Window);
 	#endif
 
+	#ifdef TICK_STEP
 		prevStep = keyMap[GLFW_KEY_SPACE];
+	#endif
 		tickNumber++;
 	}
 
