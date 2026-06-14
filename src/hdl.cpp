@@ -12,11 +12,12 @@
 #include "graphics.h"
 
 
-const std::regex chipRegex = std::regex(R"(([A-Z][a-zA-Z0-9_]+)\(([a-zA-Z0-9_=, ]+)\);)"); //For name(key=value, key=value);
-const std::regex argRegex = std::regex(R"(([a-zA-Z0-9_]+)\s*=\s*([a-zA-Z0-9_]+))"); //For key=value ^^
-const std::regex ioDefRegex = std::regex(R"(chip\s+[a-z0-9_]+\s*\{\s*in\s+([a-z0-9_]+(?:\s*,\s*[a-z0-9_]+)*);\s*out\s+([a-z0-9_]+(?:\s*,\s*[a-z0-9_]+)*);)", std::regex::icase); //for IN key, key, key; OUT key, key; etc.
-const std::regex ioArgRegex = std::regex(R"([a-zA-Z0-9_]+)"); //For key ^^
+const std::regex chipRegex = std::regex(R"(([A-Z][a-zA-Z0-9_]+)\(([a-zA-Z0-9_\[\]\.=, ]+)\);)"); //For name(key=value, key=value);
+const std::regex argRegex = std::regex(R"(([a-zA-Z0-9_\[\]\.]+)\s*=\s*([a-zA-Z0-9_\[\]\.]+))"); //For key=value ^^
+const std::regex ioDefRegex = std::regex(R"(chip\s+[a-z0-9_]+\s*\{\s*in\s+([a-z0-9_\[\]\.]+(?:\s*,\s*[a-z0-9_\[\]\.]+)*);\s*out\s+([a-z0-9_\[\]\.]+(?:\s*,\s*[a-z0-9_\[\]\.]+)*);)", std::regex::icase); //for IN key, key, key; OUT key, key; etc.
+const std::regex ioArgRegex = std::regex(R"([a-zA-Z0-9_]+(?:\[\d+(?:\.\.\d+)?\])?)"); //For key ^^
 const std::regex dirRegex = std::regex(R"((HDL[a-zA-Z0-9_.\/]*\/))"); //For getting dir from filepath
+const std::regex pinRegex = std::regex(R"(([a-zA-Z0-9_]+)(?:\[(\d+)(?:\.\.(\d+))?\])?)"); //For parsing pins/buses/slices
 const std::unordered_map<std::string, GateType> defaultChipNames = {
 	//Meta chips
 	{"Blank", G_BLANK}, {"True", G_TRUE}, {"False", G_FALSE},
@@ -66,6 +67,18 @@ bool loadFile(const std::string& filePath, std::string& source) {
 
 
 
+
+//Pre-define for getArguments.
+namespace HDL {
+	void connectPins(
+		const std::string& left,
+		const std::string& right,
+		const std::string& prefix,
+		const std::unordered_map<std::string,std::string>& argumentMap,
+		std::unordered_map<std::string,std::string>& args
+	);
+}
+
 void getArguments(
 	const std::string& argsStr, const std::string& prefix,
 	std::unordered_map<std::string, std::string>& args, //Read `key=value` from the str.
@@ -80,14 +93,7 @@ void getArguments(
 		std::string key = argumentMatch[1].str();
 		std::string value = argumentMatch[2].str();
 
-		if (argumentMap.contains(value)) {
-			//Use the value from the map instead.
-			value = argumentMap.at(value);
-		} else {
-			value = prefix + argumentMatch[2].str();
-		}
-
-		args[key] = value;
+		HDL::connectPins(key, value, prefix, argumentMap, args);
 	}
 }
 
@@ -110,6 +116,139 @@ std::set<std::string> inputs;
 std::set<std::string> outputs;
 
 
+
+types::PinInfo parsePin(const std::string& text) {
+	std::smatch m;
+
+	if (!std::regex_match(text, m, pinRegex)) {
+		throw std::runtime_error("Invalid pin syntax: " + text);
+	}
+
+	types::PinInfo info;
+	info.name = m[1].str();
+
+	if (m[2].matched) {
+		info.hasBracket = true;
+		info.first = std::stoi(m[2].str());
+	}
+
+	if (m[3].matched) {
+		info.isRange = true;
+		info.second = std::stoi(m[3].str());
+	}
+
+	return info;
+}
+
+
+
+
+//Used in the IN/OUT defs, to define a bus.
+std::vector<std::string> expandDeclaration(
+	const std::string& text
+) {
+	types::PinInfo pin = parsePin(text);
+
+	if (!pin.hasBracket) {return {pin.name,};}
+
+	if (pin.isRange) {
+		throw std::runtime_error("Ranges not allowed in declarations: " + text);
+	}
+
+
+	std::vector<std::string> result;
+	for (unsigned int i=0u; i<pin.first; i++) {
+		result.push_back(
+			pin.name + "[" + std::to_string(i) + "]"
+		);
+	}
+
+	return result;
+}
+
+
+//Used inside the PARTS list, to index bus pins.
+std::vector<std::string> expandReference(
+	const std::string& text
+) {
+	types::PinInfo pin = parsePin(text);
+
+	if (!pin.hasBracket) {return {pin.name,};}
+
+	if (!pin.isRange) {
+		return {pin.name + "[" + std::to_string(pin.first) + "]",};
+	}
+
+
+	std::vector<std::string> result;
+	for (unsigned int i=pin.first; i<=pin.second; i++) {
+		result.push_back(
+			pin.name + "[" + std::to_string(i) + "]"
+		);
+	}
+
+	return result;
+}
+
+
+
+
+
+std::vector<std::string> resolvePins(
+	const std::string& text,
+	const std::string& prefix,
+	const std::unordered_map<std::string,std::string>& argumentMap
+) {
+	std::vector<std::string> pins = expandReference(text);
+
+	for (std::string& pin : pins) {
+		auto it = argumentMap.find(pin);
+
+		if (it != argumentMap.end()) {
+			pin = it->second;
+		} else {
+			pin = prefix + pin;
+		}
+	}
+
+	return pins;
+}
+
+
+
+void connectPins(
+	const std::string& left,
+	const std::string& right,
+	const std::string& prefix,
+	const std::unordered_map<std::string,std::string>& argumentMap,
+	std::unordered_map<std::string,std::string>& args
+) {
+	std::vector<std::string> lhs = expandReference(left);
+	std::vector<std::string> rhs = resolvePins(
+		right,
+		prefix,
+		argumentMap
+	);
+
+	if (lhs.empty()) {
+		throw std::runtime_error("Invalid pin: " + left);
+	}
+
+	if (rhs.empty()) {
+		throw std::runtime_error("Invalid pin: " + right);
+	}
+
+	if (lhs.size() != rhs.size()) {
+		throw std::runtime_error("Bus width mismatch: " + left + " ←→ " + right);
+	}
+
+	for (unsigned int i=0u; i<lhs.size(); i++) {
+		args[lhs[i]] = rhs[i];
+	}
+}
+
+
+
 bool getIODefs(
 	const std::string& filePath,
 	std::set<std::string>& inputs,
@@ -130,8 +269,18 @@ bool getIODefs(
 		std::sregex_iterator endIn, endOut;
 
 		//For def in each line, format them the same as the other names, so they can be properly referenced.
-		for (; itIn!=endIn; itIn++) {inputs.insert(prefix + (*itIn)[0].str());}
-		for (; itOut!=endOut; itOut++) {outputs.insert(prefix + (*itOut)[0].str());}
+		for (; itIn!=endIn; itIn++) {
+			std::vector<std::string> names = expandDeclaration((*itIn)[0].str());
+			for (const auto& n : names) {
+				inputs.insert(prefix + n);
+			}
+		}
+		for (; itOut!=endOut; itOut++) {
+			std::vector<std::string> names = expandDeclaration((*itOut)[0].str());
+			for (const auto& n : names) {
+				outputs.insert(prefix + n);
+			}
+		}
 		return true;
 
 	} else {return false; /* Failed to find CHIP I/O, Required else simulating is useless. */}

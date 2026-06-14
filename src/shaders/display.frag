@@ -9,7 +9,8 @@ in vec2 fragUV;
 out vec4 fragColour;
 
 
-//#SHOW_STATE_RAW
+//#define SHOW_STATE_RAW
+#define SHOW_TYPE
 
 
 void main() {
@@ -19,9 +20,13 @@ void main() {
 	//Just show raw data of gate.
 	fragColour = vec4(gateData.xyz, 1.0f);
 #else
-	//Show output states of gate.
-	uint state = uint(gateData.x) & 0x1u;
 	uint type = (uint(gateData.x) >> 2u) & 0xFFu;
+	uint state = uint(gateData.x) & 0x1u;
+#ifdef SHOW_TYPE
+	fragColour = vec4(float(type)/64.0f, state, 0.0f, 1.0f);
+#else
+
+	//Show output states of gate.
 
 	switch (type) {
 		case G_BLANK: {
@@ -51,5 +56,6 @@ void main() {
 			break;
 		}
 	}
+#endif
 #endif
 }

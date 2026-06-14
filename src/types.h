@@ -48,8 +48,19 @@ inline unsigned int IOcounter = 0u;
 namespace types {
 
 inline std::unordered_map<std::string, unsigned int> IOmap = {}; //Map of IO names to their indices.
-inline std::vector<std::string> inputNames = {}; //Vector of input names
-inline std::vector<std::string> outputNames = {}; //Vector of output names
+
+
+
+//Stores info about a pin when parsing it.
+struct PinInfo {
+    std::string name;
+
+    bool hasBracket = false;
+    bool isRange = false;
+
+    unsigned int first = 0u;
+    unsigned int second = 0u;
+};
 
 
 
@@ -100,7 +111,6 @@ struct Gate {
 				IOcounter, //Index into the IOSSBO.
 				0u, 0u //2 blank inputs (Unused)
 			);
-			inputNames.push_back(name);
 			IOmap[name] = IOcounter++; //Increment.
 
 		} else if (type == G_OUTPUT) {
@@ -114,7 +124,6 @@ struct Gate {
 				),
 				0u //Blank input (Unused)
 			);
-			outputNames.push_back(name);
 			IOmap[name] = IOcounter++; //Increment.
 
 		} else {

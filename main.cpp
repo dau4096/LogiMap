@@ -54,7 +54,7 @@ int main() {
 	utils::GLErrorcheck("Window Creation", true);
 
 	//Read HDL file
-	HDL::parse("HDL/FullAdderSplit.hdl");
+	HDL::parse("HDL/Add8.hdl");
 
 
 	//Add input keys to keyMap.
@@ -87,7 +87,7 @@ int main() {
 
 
 		unsigned int keyID = 0u; //Index into input key vector.
-		for (std::string& inputName : types::inputNames) {
+		for (std::string inputName : HDL::inputs) {
 			unsigned int index = types::IOmap[inputName];
 			((GLuint*)(GLIndex::IOptr))[index] = (keyMap[inputKeys[keyID++]]) ? 1u : 0u;
 			if (keyID >= inputKeys.size()) {break;}
